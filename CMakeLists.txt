@@ -42,6 +42,10 @@ if(ENABLE_QT)
       ${CMAKE_PROJECT_NAME}
       PRIVATE "-F${QT_FRAMEWORK_DIR}" "-iframework${QT_FRAMEWORK_DIR}"
     )
+    target_compile_options(
+      ${CMAKE_PROJECT_NAME}
+      PRIVATE "-F${QT_FRAMEWORK_DIR}" "-iframework${QT_FRAMEWORK_DIR}"
+    )
     target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE "-framework QtCore" "-framework QtGui" "-framework QtWidgets")
   else()
     find_package(Qt6 COMPONENTS Widgets Core)
@@ -53,7 +57,15 @@ if(ENABLE_QT)
   )
 endif()
 
-target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/plugin-main.c)
+target_sources(
+  ${CMAKE_PROJECT_NAME}
+  PRIVATE
+    src/plugin-main.c
+    src/bm-models.cpp
+    src/bm-models.hpp
+    src/bm-scope-store.cpp
+    src/bm-scope-store.hpp
+)
 
 if(ENABLE_QT)
   target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE BETTER_MARKERS_QT=1)
