@@ -1,84 +1,66 @@
 # Better Markers (OBS Plugin)
 
-Cross-platform OBS plugin project scaffolded from the official OBS plugin template.
+Better Markers is an OBS frontend plugin that adds Premiere Pro-compatible clip markers during recording.
 
-## Target Platforms
+## What It Does
 
-- macOS (host dev machine)
-- Linux (Ubuntu)
-- Windows (x64)
+- Adds a **Better Markers** dock with an **Add Marker** button on the main OBS screen.
+- Lets you create marker templates in **Tools -> Better Markers Settings** with:
+  - template name
+  - title
+  - description
+  - Premiere marker color
+  - per-field editable flags for add-marker dialogs
+  - scope (`Global`, `Profile`, `Scene Collection`)
+- Registers hotkeys in OBS **Settings -> Hotkeys** for:
+  - `Better Markers: Quick Marker`
+  - `Better Markers: Quick Custom Marker`
+  - every active template (scope-aware)
+- Captures marker time **at trigger press**, not at dialog submit.
+- Allows marker creation **only while recording and not paused**.
+- Writes XMP sidecar markers immediately for the active recording file.
+- On split/stop, tries native MP4/MOV embed into `moov/udta/XMP_` with safe temp rewrite and rollback.
+- Keeps sidecar files even after successful embed.
+- Queues failed embed jobs and retries them on plugin load.
 
-## Build Prerequisites
+## Scope Model
 
-From the official template requirements:
+Active templates are the union of:
 
-- CMake 3.28+
-- macOS: Xcode 16+
-- Linux: `ninja-build`, `pkg-config`, `build-essential`
-- Windows: Visual Studio 2022 + recent Windows SDK
+- `Global`
+- current `Profile`
+- current `Scene Collection`
 
-## Quick Start (macOS)
+Each template keeps its own scoped hotkey binding data.
 
-```bash
-./scripts/dev/configure.sh
-./scripts/dev/build-install.sh
-```
+## Premiere XMP Mapping
 
-That builds the plugin and installs it into:
+Each marker is written as:
 
-`~/Library/Application Support/obs-studio/plugins`
+- `xmpDM:startTime` (frame index, 0-based)
+- `xmpDM:duration` (`0`)
+- `xmpDM:name`
+- `xmpDM:comment`
+- `xmpDM:type` (`Cue`)
+- `xmpDM:guid` (UUIDv4)
+- `xmpDM:cuePointParams` with:
+  - `marker_guid`
+  - `color` (`0..8`, Premiere color IDs)
 
-Then restart OBS.
+Track metadata:
 
-## Fast Dev Loop (No Manual Install)
+- `trackName = Adobe Premiere Pro Clip Marker`
+- `trackType = Clip`
+- `frameRate = <num>f<den>s`
 
-The OBS template build copies outputs into `build_macos/rundir/RelWithDebInfo`. You can run OBS against that folder directly:
-
-```bash
-./scripts/dev/run-obs-with-rundir.sh
-```
-
-This avoids manual plugin copying while iterating and launches OBS as a normal macOS app.
-
-## Auto Rebuild + Auto Install
-
-Use a watcher that triggers build+install whenever source files change:
-
-```bash
-./scripts/dev/watch-install.sh
-```
-
-Notes:
-- Prefers `fswatch` if installed (`brew install fswatch`)
-- Falls back to a portable polling mode if `fswatch` is unavailable
-
-## Cross-Platform Build Commands
-
-macOS:
+## Build (macOS)
 
 ```bash
 cmake --preset macos
-cmake --build --preset macos
+cmake --build --preset macos --config RelWithDebInfo
 ```
 
-Linux:
+## Notes
 
-```bash
-cmake --preset ubuntu-x86_64
-cmake --build --preset ubuntu-x86_64
-```
-
-Windows (Developer PowerShell):
-
-```powershell
-cmake --preset windows-x64
-cmake --build --preset windows-x64
-```
-
-## Upstream References
-
-- Template repository: https://github.com/obsproject/obs-plugintemplate
-- Template wiki: https://github.com/obsproject/obs-plugintemplate/wiki
-- Build requirements: https://github.com/obsproject/obs-plugintemplate/wiki/Build-System-Requirements
-- Quick start: https://github.com/obsproject/obs-plugintemplate/wiki/Quick-Start-Guide
-- Debugging plugin with `rundir`: https://github.com/obsproject/obs-plugintemplate/wiki/How-To-Debug-Your-Plugin
+- UI is English-only.
+- If MP4/MOV embedding fails, original recording is preserved and sidecar remains authoritative.

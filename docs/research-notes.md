@@ -1,38 +1,53 @@
-# OBS Cross-Platform Plugin Notes
+# Better Markers Research Notes
 
-Date: 2026-02-25
+Date: 2026-02-26
 
-## Recommended Base
+## OBS API Findings (31.1.1)
 
-Use the official OBS plugin template (`obsproject/obs-plugintemplate`) for cross-platform support.
-It includes CMake presets and CI workflows for macOS, Linux, and Windows.
+Key implementation details verified against vendored OBS source and headers:
 
-## Platform Build Targets
+- Recording lifecycle events available through `obs_frontend_event`:
+  - `OBS_FRONTEND_EVENT_RECORDING_STARTED`
+  - `OBS_FRONTEND_EVENT_RECORDING_STOPPED`
+  - `OBS_FRONTEND_EVENT_RECORDING_PAUSED`
+  - `OBS_FRONTEND_EVENT_RECORDING_UNPAUSED`
+- Recording output is available via `obs_frontend_get_recording_output()`.
+- Packet timing can be tracked with `obs_output_add_packet_callback(...)`.
+  - Video packets expose `encoder_packet::dts_usec`.
+- Split recording transition can be observed through output signal:
+  - `file_changed(string next_file)`
+- Current recording path can be obtained via:
+  - `obs_frontend_get_last_recording()` (preferred)
+  - `obs_frontend_get_current_record_output_path()` (fallback)
 
-- macOS: `macos` preset (Universal `arm64;x86_64`)
-- Linux: `ubuntu-x86_64` preset (Ninja)
-- Windows: `windows-x64` preset (Visual Studio 2022)
+## Marker Timing
 
-## Local Dev Testing Strategy
+Final frame selection strategy:
 
-For fast iteration on macOS:
+1. Prefer packet timestamp:
+   - `frame = floor(dts_usec * fps_num / (fps_den * 1_000_000))`
+2. Fallback to monotonic active-recording time (pause-adjusted).
 
-1. Build with template preset.
-2. Use template-generated `build_macos/rundir/RelWithDebInfo` for runtime plugin assets.
-3. Launch OBS with `OBS_PLUGINS_PATH` and `OBS_PLUGINS_DATA_PATH` set to that `rundir`.
+Trigger-time snapshot is captured before any marker dialog is shown.
 
-This avoids repetitive manual copying into global plugin directories.
+## XMP Strategy
 
-## Local Install Path Defaults
+- Sidecar writing is authoritative during recording.
+- A single Premiere marker track is maintained and rewritten atomically per update.
+- Marker `type` is locked to `Cue`.
 
-Template defaults:
+## MP4/MOV Embed Strategy
 
-- macOS: `~/Library/Application Support/obs-studio/plugins`
-- Windows: `%ALLUSERSPROFILE%/obs-studio/plugins`
+- Native atom-level rewrite modifies `moov/udta/XMP_`.
+- Rewrite flow:
+  1. Read and patch `moov` atom.
+  2. Write full temp file in same directory.
+  3. Validate embedded `XMP_` atom in temp output.
+  4. Replace original via backup+rename rollback flow.
+- For unsupported atom ordering (`moov` before trailing `mdat`), embed is skipped and deferred.
 
-## Source Links
+## Recovery
 
-- https://github.com/obsproject/obs-plugintemplate
-- https://github.com/obsproject/obs-plugintemplate/wiki/Quick-Start-Guide
-- https://github.com/obsproject/obs-plugintemplate/wiki/Build-System-Requirements
-- https://github.com/obsproject/obs-plugintemplate/wiki/How-To-Debug-Your-Plugin
+- Failed embed attempts are persisted in `pending-embed.json`.
+- Queue is retried on plugin load.
+- Sidecar remains present regardless of embed outcome.
