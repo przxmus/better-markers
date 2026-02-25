@@ -60,11 +60,17 @@ endif()
 target_sources(
   ${CMAKE_PROJECT_NAME}
   PRIVATE
-    src/plugin-main.c
+    src/plugin-main.cpp
+    src/bm-colors.cpp
+    src/bm-colors.hpp
     src/bm-models.cpp
     src/bm-models.hpp
+    src/bm-settings-dialog.cpp
+    src/bm-settings-dialog.hpp
     src/bm-scope-store.cpp
     src/bm-scope-store.hpp
+    src/bm-template-editor-dialog.cpp
+    src/bm-template-editor-dialog.hpp
 )
 
 if(ENABLE_QT)
