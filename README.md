@@ -38,7 +38,7 @@ The OBS template build copies outputs into `build_macos/rundir/RelWithDebInfo`. 
 ./scripts/dev/run-obs-with-rundir.sh
 ```
 
-This avoids manual plugin copying while iterating.
+This avoids manual plugin copying while iterating and launches OBS as a normal macOS app.
 
 ## Auto Rebuild + Auto Install
 
