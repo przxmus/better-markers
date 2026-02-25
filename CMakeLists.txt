@@ -60,6 +60,21 @@ endif()
 target_sources(
   ${CMAKE_PROJECT_NAME}
   PRIVATE
+    src/bm-hotkey-registry.cpp
+    src/bm-hotkey-registry.hpp
+    src/bm-marker-controller.cpp
+    src/bm-marker-controller.hpp
+    src/bm-marker-data.hpp
+    src/bm-marker-dialog.cpp
+    src/bm-marker-dialog.hpp
+    src/bm-mp4-mov-embed-engine.cpp
+    src/bm-mp4-mov-embed-engine.hpp
+    src/bm-recovery-queue.cpp
+    src/bm-recovery-queue.hpp
+    src/bm-recording-session-tracker.cpp
+    src/bm-recording-session-tracker.hpp
+    src/bm-xmp-sidecar-writer.cpp
+    src/bm-xmp-sidecar-writer.hpp
     src/plugin-main.cpp
     src/bm-colors.cpp
     src/bm-colors.hpp

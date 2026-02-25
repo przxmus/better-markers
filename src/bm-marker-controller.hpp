@@ -1,0 +1,59 @@
+#pragma once
+
+#include "bm-marker-data.hpp"
+#include "bm-mp4-mov-embed-engine.hpp"
+#include "bm-recovery-queue.hpp"
+#include "bm-recording-session-tracker.hpp"
+#include "bm-scope-store.hpp"
+#include "bm-xmp-sidecar-writer.hpp"
+
+#include <QHash>
+#include <QVector>
+
+#include <mutex>
+
+class QWidget;
+
+namespace bm {
+
+class MarkerController {
+public:
+	MarkerController(ScopeStore *store, RecordingSessionTracker *tracker, QWidget *parent_window,
+			 const QString &base_store_dir);
+
+	void set_active_templates(const QVector<MarkerTemplate> &templates);
+
+	void add_marker_from_main_button();
+	void add_marker_from_template_hotkey(const MarkerTemplate &templ);
+	void quick_marker();
+	void quick_custom_marker();
+
+	void on_recording_file_changed(const QString &closed_file, const QString &next_file);
+	void on_recording_stopped(const QString &closed_file);
+	void retry_recovery_queue();
+
+private:
+	bool capture_pending_context(PendingMarkerContext *out_ctx, bool show_warning_ui) const;
+	MarkerRecord marker_from_inputs(const PendingMarkerContext &ctx, const QString &title, const QString &description,
+					int color_id) const;
+
+	void append_marker(const QString &media_path, const MarkerRecord &marker);
+	void finalize_closed_file(const QString &closed_file);
+	void show_warning_async(const QString &message) const;
+
+	static bool template_has_editables(const MarkerTemplate &templ);
+
+	ScopeStore *m_store = nullptr;
+	RecordingSessionTracker *m_tracker = nullptr;
+	QWidget *m_parent_window = nullptr;
+
+	XmpSidecarWriter m_xmp_writer;
+	Mp4MovEmbedEngine m_embed_engine;
+	RecoveryQueue m_recovery;
+
+	mutable std::mutex m_mutex;
+	QVector<MarkerTemplate> m_active_templates;
+	QHash<QString, QVector<MarkerRecord>> m_markers_by_file;
+};
+
+} // namespace bm
