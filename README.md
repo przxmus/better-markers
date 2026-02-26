@@ -67,7 +67,8 @@ Use the platform archive (`-x86_64-ubuntu-gnu.tar.xz`), not `-source.tar.xz`.
 2. In `Export Targets`, enable the hosts you use.
 3. Create marker templates.
 4. Optionally set hotkeys in `Settings -> Hotkeys`.
-5. Start recording and add markers from the dock or hotkeys.
+5. In `Marker Dialog`, leave `Pause recording while marker dialog is open` enabled (default) if you want typing time excluded from footage.
+6. Start recording and add markers from the dock or hotkeys.
 
 ## Generated Files
 
@@ -97,6 +98,7 @@ All files are written in the same folder as the recording.
 ## Important Notes
 
 - Markers can be added only while recording is active (not paused).
+- If enabled in settings (default), recording is paused while a marker dialog is open and resumes when the dialog flow ends.
 - Export writes happen immediately after each new marker.
 - Multi-output runs in parallel: one target failing does not block the others.
 - Final Cut export is available only on macOS.
