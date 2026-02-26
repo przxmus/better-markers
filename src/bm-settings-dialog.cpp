@@ -42,30 +42,6 @@ SettingsDialog::SettingsDialog(ScopeStore *store, QWidget *parent) : QDialog(par
 	setMinimumSize(760, 520);
 
 	auto *main_layout = new QVBoxLayout(this);
-	auto *export_targets_group = new QGroupBox(bm_text("BetterMarkers.Settings.ExportTargets"), this);
-	auto *export_targets_layout = new QVBoxLayout(export_targets_group);
-
-	m_premiere_toggle = new QCheckBox(bm_text("BetterMarkers.Settings.ExportPremiereLabel"), export_targets_group);
-	export_targets_layout->addWidget(m_premiere_toggle);
-	export_targets_layout->addWidget(new QLabel(bm_text("BetterMarkers.Settings.ExportPremiereHint"), export_targets_group));
-
-	m_resolve_toggle = new QCheckBox(bm_text("BetterMarkers.Settings.ExportResolveLabel"), export_targets_group);
-	export_targets_layout->addWidget(m_resolve_toggle);
-	export_targets_layout->addWidget(new QLabel(bm_text("BetterMarkers.Settings.ExportResolveHint"), export_targets_group));
-
-	m_final_cut_toggle = new QCheckBox(bm_text("BetterMarkers.Settings.ExportFinalCutLabel"), export_targets_group);
-	export_targets_layout->addWidget(m_final_cut_toggle);
-	export_targets_layout->addWidget(new QLabel(bm_text("BetterMarkers.Settings.ExportFinalCutHint"), export_targets_group));
-
-#ifdef __APPLE__
-	m_final_cut_platform_hint = nullptr;
-#else
-	m_final_cut_toggle->setEnabled(false);
-	m_final_cut_platform_hint = new QLabel(bm_text("BetterMarkers.Settings.ExportFinalCutUnavailable"), export_targets_group);
-	export_targets_layout->addWidget(m_final_cut_platform_hint);
-#endif
-	main_layout->addWidget(export_targets_group);
-
 	main_layout->addWidget(new QLabel(bm_text("BetterMarkers.Settings.MarkerTemplates"), this));
 
 	m_template_list = new QListWidget(this);
@@ -82,6 +58,31 @@ SettingsDialog::SettingsDialog(ScopeStore *store, QWidget *parent) : QDialog(par
 	button_row->addStretch(1);
 	button_row->addWidget(close_btn);
 	main_layout->addLayout(button_row);
+
+	auto *export_targets_group = new QGroupBox(bm_text("BetterMarkers.Settings.ExportTargets"), this);
+	auto *export_targets_layout = new QHBoxLayout(export_targets_group);
+	export_targets_layout->setContentsMargins(10, 8, 10, 8);
+	export_targets_layout->setSpacing(12);
+
+	m_premiere_toggle = new QCheckBox(bm_text("BetterMarkers.Settings.ExportPremiereLabel"), export_targets_group);
+	m_premiere_toggle->setToolTip(bm_text("BetterMarkers.Settings.ExportPremiereHint"));
+	export_targets_layout->addWidget(m_premiere_toggle);
+
+	m_resolve_toggle = new QCheckBox(bm_text("BetterMarkers.Settings.ExportResolveLabel"), export_targets_group);
+	m_resolve_toggle->setToolTip(bm_text("BetterMarkers.Settings.ExportResolveHint"));
+	export_targets_layout->addWidget(m_resolve_toggle);
+
+	m_final_cut_toggle = new QCheckBox(bm_text("BetterMarkers.Settings.ExportFinalCutLabel"), export_targets_group);
+#ifdef __APPLE__
+	m_final_cut_toggle->setToolTip(bm_text("BetterMarkers.Settings.ExportFinalCutHint"));
+#else
+	m_final_cut_toggle->setEnabled(false);
+	m_final_cut_toggle->setToolTip(bm_text("BetterMarkers.Settings.ExportFinalCutUnavailable"));
+#endif
+	export_targets_layout->addWidget(m_final_cut_toggle);
+	export_targets_layout->addStretch(1);
+
+	main_layout->addWidget(export_targets_group);
 
 	main_layout->addWidget(new QLabel(bm_text("BetterMarkers.Settings.HotkeysHint"), this));
 

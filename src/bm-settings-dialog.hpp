@@ -8,7 +8,6 @@
 
 class QListWidget;
 class QCheckBox;
-class QLabel;
 class QPushButton;
 
 namespace bm {
@@ -43,7 +42,6 @@ private:
 	QCheckBox *m_premiere_toggle = nullptr;
 	QCheckBox *m_resolve_toggle = nullptr;
 	QCheckBox *m_final_cut_toggle = nullptr;
-	QLabel *m_final_cut_platform_hint = nullptr;
 	QPushButton *m_edit_button = nullptr;
 	QPushButton *m_delete_button = nullptr;
 };
