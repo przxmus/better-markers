@@ -68,6 +68,8 @@ target_sources(
     src/bm-marker-export-sink.hpp
     src/bm-marker-dialog.cpp
     src/bm-marker-dialog.hpp
+    src/bm-fcpxml-writer.cpp
+    src/bm-fcpxml-writer.hpp
     src/bm-mp4-mov-embed-engine.cpp
     src/bm-mp4-mov-embed-engine.hpp
     src/bm-recovery-queue.cpp
