@@ -106,6 +106,16 @@ SettingsDialog::SettingsDialog(ScopeStore *store, QWidget *parent) : QDialog(par
 
 	main_layout->addWidget(export_targets_group);
 
+	auto *dialog_behavior_group = new QGroupBox(bm_text("BetterMarkers.Settings.MarkerDialog"), this);
+	auto *dialog_behavior_layout = new QVBoxLayout(dialog_behavior_group);
+	dialog_behavior_layout->setContentsMargins(10, 8, 10, 8);
+	dialog_behavior_layout->setSpacing(6);
+	m_auto_focus_toggle =
+		new QCheckBox(bm_text("BetterMarkers.Settings.AutoFocusMarkerDialogLabel"), dialog_behavior_group);
+	m_auto_focus_toggle->setToolTip(bm_text("BetterMarkers.Settings.AutoFocusMarkerDialogHint"));
+	dialog_behavior_layout->addWidget(m_auto_focus_toggle);
+	main_layout->addWidget(dialog_behavior_group);
+
 	main_layout->addWidget(new QLabel(bm_text("BetterMarkers.Settings.HotkeysHint"), this));
 
 	connect(add_btn, &QPushButton::clicked, this, [this]() { add_template(); });
@@ -116,6 +126,11 @@ SettingsDialog::SettingsDialog(ScopeStore *store, QWidget *parent) : QDialog(par
 	connect(m_premiere_toggle, &QCheckBox::toggled, this, [this]() { update_export_profile_from_ui(); });
 	connect(m_resolve_toggle, &QCheckBox::toggled, this, [this]() { update_export_profile_from_ui(); });
 	connect(m_final_cut_toggle, &QCheckBox::toggled, this, [this]() { update_export_profile_from_ui(); });
+	connect(m_auto_focus_toggle, &QCheckBox::toggled, this, [this](bool enabled) {
+		m_store->set_auto_focus_marker_dialog(enabled);
+		if (m_persist_callback)
+			m_persist_callback();
+	});
 	connect(m_update_available_label, &QLabel::linkActivated, this, [this](const QString &) {
 		if (!m_release_url.isEmpty())
 			QDesktopServices::openUrl(QUrl(m_release_url));
@@ -161,6 +176,10 @@ void SettingsDialog::refresh()
 	{
 		QSignalBlocker block_final_cut(m_final_cut_toggle);
 		m_final_cut_toggle->setChecked(profile.enable_final_cut_fcpxml);
+	}
+	{
+		QSignalBlocker block_auto_focus(m_auto_focus_toggle);
+		m_auto_focus_toggle->setChecked(m_store->auto_focus_marker_dialog());
 	}
 
 	m_template_list->clear();
