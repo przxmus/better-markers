@@ -115,6 +115,9 @@ SettingsDialog::SettingsDialog(ScopeStore *store, QWidget *parent) : QDialog(par
 		new QCheckBox(bm_text("BetterMarkers.Settings.AutoFocusMarkerDialogLabel"), dialog_behavior_group);
 	m_auto_focus_toggle->setToolTip(bm_text("BetterMarkers.Settings.AutoFocusMarkerDialogHint"));
 	dialog_behavior_layout->addWidget(m_auto_focus_toggle);
+	m_pause_during_dialog_toggle = new QCheckBox(
+		bm_text("BetterMarkers.Settings.PauseRecordingDuringMarkerDialogLabel"), dialog_behavior_group);
+	dialog_behavior_layout->addWidget(m_pause_during_dialog_toggle);
 	main_layout->addWidget(dialog_behavior_group);
 
 	main_layout->addWidget(new QLabel(bm_text("BetterMarkers.Settings.HotkeysHint"), this));
@@ -129,6 +132,11 @@ SettingsDialog::SettingsDialog(ScopeStore *store, QWidget *parent) : QDialog(par
 	connect(m_final_cut_toggle, &QCheckBox::toggled, this, [this]() { update_export_profile_from_ui(); });
 	connect(m_auto_focus_toggle, &QCheckBox::toggled, this, [this](bool enabled) {
 		m_store->set_auto_focus_marker_dialog(enabled);
+		if (m_persist_callback)
+			m_persist_callback();
+	});
+	connect(m_pause_during_dialog_toggle, &QCheckBox::toggled, this, [this](bool enabled) {
+		m_store->set_pause_recording_during_marker_dialog(enabled);
 		if (m_persist_callback)
 			m_persist_callback();
 	});
@@ -182,6 +190,10 @@ void SettingsDialog::refresh()
 	{
 		QSignalBlocker block_auto_focus(m_auto_focus_toggle);
 		m_auto_focus_toggle->setChecked(m_store->auto_focus_marker_dialog());
+	}
+	{
+		QSignalBlocker block_pause_during_dialog(m_pause_during_dialog_toggle);
+		m_pause_during_dialog_toggle->setChecked(m_store->pause_recording_during_marker_dialog());
 	}
 
 	m_template_list->clear();

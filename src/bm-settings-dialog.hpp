@@ -45,6 +45,7 @@ private:
 	QCheckBox *m_resolve_toggle = nullptr;
 	QCheckBox *m_final_cut_toggle = nullptr;
 	QCheckBox *m_auto_focus_toggle = nullptr;
+	QCheckBox *m_pause_during_dialog_toggle = nullptr;
 	QPushButton *m_edit_button = nullptr;
 	QPushButton *m_delete_button = nullptr;
 	QLabel *m_version_label = nullptr;
