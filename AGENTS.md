@@ -3,7 +3,7 @@
 ## Localization Maintenance
 
 - Keep `data/locale/en-US.ini` as the source key set.
-- If any locale key is added, removed, or renamed in `en-US.ini`, apply the same key change in all maintained locale files in the same change set.
+- If any locale key is added, removed, or renamed in `en-US.ini`, apply the same key change and provide actual translations (not placeholders or default English strings) in all maintained locale files in the same change set, ensuring 100% translation coverage.
 - Maintained locale files are:
   - `an-ES.ini`
   - `ar-SA.ini`
