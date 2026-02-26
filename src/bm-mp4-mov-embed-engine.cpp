@@ -6,6 +6,8 @@
 namespace bm {
 namespace {
 
+const QByteArray ADOBE_XMP_UUID = QByteArray::fromHex("be7acfcb97a942e89c71999491e3afac");
+
 struct Atom {
 	quint64 offset = 0;
 	quint64 size = 0;
@@ -32,6 +34,17 @@ void write_be32(char *data, quint32 value)
 	data[1] = static_cast<char>((value >> 16) & 0xFF);
 	data[2] = static_cast<char>((value >> 8) & 0xFF);
 	data[3] = static_cast<char>(value & 0xFF);
+}
+
+bool is_xmp_uuid_atom(const QByteArray &atom)
+{
+	if (atom.size() < 24)
+		return false;
+	if (atom.mid(4, 4) != "uuid")
+		return false;
+	if (atom.mid(8, 16) != ADOBE_XMP_UUID)
+		return false;
+	return atom.indexOf("<?xpacket", 24) >= 0;
 }
 
 bool parse_atoms_from_buffer(const QByteArray &buffer, int start, int end, QVector<Atom> &atoms, QString *error)
@@ -159,6 +172,28 @@ QByteArray make_atom(const QByteArray &type, const QByteArray &payload, bool *ok
 	return atom;
 }
 
+QByteArray make_uuid_atom(const QByteArray &payload, bool *ok)
+{
+	const quint64 total_size = 8 + 16 + static_cast<quint64>(payload.size());
+	if (total_size > 0xFFFFFFFFULL) {
+		if (ok)
+			*ok = false;
+		return {};
+	}
+
+	QByteArray atom;
+	atom.resize(static_cast<int>(total_size));
+	write_be32(atom.data(), static_cast<quint32>(total_size));
+	memcpy(atom.data() + 4, "uuid", 4);
+	memcpy(atom.data() + 8, ADOBE_XMP_UUID.constData(), 16);
+	if (!payload.isEmpty())
+		memcpy(atom.data() + 24, payload.constData(), payload.size());
+
+	if (ok)
+		*ok = true;
+	return atom;
+}
+
 QByteArray patch_udta(const QByteArray &udta_atom, const QByteArray &xmp_payload, QString *error)
 {
 	QVector<Atom> children;
@@ -166,10 +201,10 @@ QByteArray patch_udta(const QByteArray &udta_atom, const QByteArray &xmp_payload
 		return {};
 
 	bool ok = true;
-	const QByteArray xmp_atom = make_atom("XMP_", xmp_payload, &ok);
+	const QByteArray xmp_atom = make_uuid_atom(xmp_payload, &ok);
 	if (!ok) {
 		if (error)
-			*error = "XMP atom too large";
+			*error = "XMP uuid atom too large";
 		return {};
 	}
 
@@ -177,11 +212,12 @@ QByteArray patch_udta(const QByteArray &udta_atom, const QByteArray &xmp_payload
 	new_payload.reserve(udta_atom.size() + xmp_atom.size());
 	bool replaced = false;
 	for (const Atom &child : children) {
-		if (child.type == "XMP_") {
+		const QByteArray child_atom = udta_atom.mid(static_cast<int>(child.offset), static_cast<int>(child.size));
+		if (child.type == "XMP_" || (child.type == "uuid" && is_xmp_uuid_atom(child_atom))) {
 			new_payload.append(xmp_atom);
 			replaced = true;
 		} else {
-			new_payload.append(udta_atom.mid(static_cast<int>(child.offset), static_cast<int>(child.size)));
+			new_payload.append(child_atom);
 		}
 	}
 	if (!replaced)
@@ -215,7 +251,7 @@ QByteArray patch_moov(const QByteArray &moov_atom, const QByteArray &xmp_payload
 	}
 
 	if (!patched_udta) {
-		const QByteArray udta_atom = make_atom("udta", make_atom("XMP_", xmp_payload, &ok), &ok);
+		const QByteArray udta_atom = make_atom("udta", make_uuid_atom(xmp_payload, &ok), &ok);
 		if (!ok) {
 			if (error)
 				*error = "Failed to build udta atom";
@@ -296,6 +332,12 @@ bool has_xmp_atom(const QString &path)
 			for (const Atom &udta_child : udta_children) {
 				if (udta_child.type == "XMP_")
 					return true;
+				if (udta_child.type == "uuid") {
+					const QByteArray uuid_atom =
+						udta.mid(static_cast<int>(udta_child.offset), static_cast<int>(udta_child.size));
+					if (is_xmp_uuid_atom(uuid_atom))
+						return true;
+				}
 			}
 		}
 	}
@@ -390,7 +432,7 @@ EmbedResult Mp4MovEmbedEngine::embed_xmp(const QString &media_path, const QByteA
 
 	if (!has_xmp_atom(temp_path)) {
 		QFile::remove(temp_path);
-		return {false, "Embedded file validation failed (missing XMP_ atom)"};
+		return {false, "Embedded file validation failed (missing XMP metadata atom)"};
 	}
 
 	QFile::remove(backup_path);

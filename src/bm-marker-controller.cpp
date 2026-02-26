@@ -166,7 +166,7 @@ MarkerRecord MarkerController::marker_from_inputs(const PendingMarkerContext &ct
 	marker.duration_frames = 0;
 	marker.name = title;
 	marker.comment = description;
-	marker.type = "Cue";
+	marker.type = "Comment";
 	marker.guid = QUuid::createUuid().toString(QUuid::WithoutBraces);
 	marker.color_id = color_id;
 	return marker;

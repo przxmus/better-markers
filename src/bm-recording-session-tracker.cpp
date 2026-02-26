@@ -97,7 +97,7 @@ int64_t RecordingSessionTracker::capture_frame_now() const
 	if (m_fps_den == 0)
 		return 0;
 
-	if (latest_dts_usec >= 0) {
+	if (latest_dts_usec > 0) {
 		const long double numerator = static_cast<long double>(latest_dts_usec) * m_fps_num;
 		const long double denominator = static_cast<long double>(m_fps_den) * 1000000.0L;
 		const auto frame = static_cast<int64_t>(numerator / denominator);
@@ -258,7 +258,7 @@ void RecordingSessionTracker::detach_output_hooks()
 
 QString RecordingSessionTracker::query_current_recording_path() const
 {
-	char *path = obs_frontend_get_last_recording();
+	char *path = obs_frontend_get_current_record_output_path();
 	if (path && *path) {
 		const QString result = QString::fromUtf8(path);
 		bfree(path);
@@ -267,7 +267,7 @@ QString RecordingSessionTracker::query_current_recording_path() const
 	if (path)
 		bfree(path);
 
-	path = obs_frontend_get_current_record_output_path();
+	path = obs_frontend_get_last_recording();
 	if (path && *path) {
 		const QString result = QString::fromUtf8(path);
 		bfree(path);
