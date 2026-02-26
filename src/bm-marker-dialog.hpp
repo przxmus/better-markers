@@ -53,6 +53,7 @@ private:
 	QString m_fixed_template_id;
 	bool m_request_immediate_focus = false;
 	bool m_aggressive_focus = false;
+	bool m_focus_activation_scheduled = false;
 	std::function<bool()> m_platform_activation_callback;
 
 	QComboBox *m_template_combo = nullptr;

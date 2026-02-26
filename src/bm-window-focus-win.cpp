@@ -64,7 +64,6 @@ bool activate_platform_marker_dialog_window(QWidget *dialog)
 	if (parent_hwnd && IsWindow(parent_hwnd) && IsIconic(parent_hwnd)) {
 		blog(LOG_DEBUG, "[better-markers][focus][win] restoring OBS parent window hwnd=%p", parent_hwnd);
 		ShowWindow(parent_hwnd, SW_RESTORE);
-		activate_hwnd(parent_hwnd);
 	}
 
 	const HWND dialog_hwnd = hwnd_from_widget(dialog->window());

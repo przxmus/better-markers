@@ -51,6 +51,30 @@ private:
 	WindowFocusSnapshot m_snapshot;
 };
 
+class DialogReentryGuard {
+public:
+	explicit DialogReentryGuard(std::atomic_bool *flag) : m_flag(flag)
+	{
+		if (m_flag)
+			m_acquired = !m_flag->exchange(true);
+	}
+
+	~DialogReentryGuard()
+	{
+		if (m_flag && m_acquired)
+			m_flag->store(false);
+	}
+
+	bool acquired() const
+	{
+		return m_acquired;
+	}
+
+private:
+	std::atomic_bool *m_flag = nullptr;
+	bool m_acquired = false;
+};
+
 } // namespace
 
 MarkerController::MarkerController(ScopeStore *store, RecordingSessionTracker *tracker, QWidget *parent_window,
@@ -122,6 +146,12 @@ void MarkerController::add_marker_from_template_hotkey(const MarkerTemplate &tem
 	int color_id = templ.color_id;
 
 	if (template_has_editables(templ)) {
+		DialogReentryGuard dialog_guard(&m_hotkey_dialog_open);
+		if (!dialog_guard.acquired()) {
+			blog(LOG_WARNING, "[better-markers] marker dialog already open; ignoring hotkey trigger");
+			return;
+		}
+
 		HotkeyDialogFocusSession focus_session(m_store);
 		QVector<MarkerTemplate> templates{templ};
 		MarkerDialog dialog(templates, MarkerDialog::Mode::FixedTemplate, templ.id, m_parent_window);
@@ -156,6 +186,12 @@ void MarkerController::quick_custom_marker()
 	PendingMarkerContext ctx;
 	if (!capture_pending_context(&ctx, false))
 		return;
+
+	DialogReentryGuard dialog_guard(&m_hotkey_dialog_open);
+	if (!dialog_guard.acquired()) {
+		blog(LOG_WARNING, "[better-markers] marker dialog already open; ignoring quick custom hotkey");
+		return;
+	}
 
 	HotkeyDialogFocusSession focus_session(m_store);
 	QVector<MarkerTemplate> none;

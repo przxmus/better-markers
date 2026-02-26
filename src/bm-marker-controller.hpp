@@ -68,6 +68,7 @@ private:
 	QVector<MarkerExportSink *> m_export_sinks;
 	QHash<QString, QVector<MarkerRecord>> m_markers_by_file;
 	std::atomic_bool m_shutting_down{false};
+	std::atomic_bool m_hotkey_dialog_open{false};
 };
 
 } // namespace bm

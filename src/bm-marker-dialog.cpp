@@ -134,8 +134,6 @@ void MarkerDialog::prepare_for_immediate_input(bool aggressive_focus)
 {
 	m_request_immediate_focus = true;
 	m_aggressive_focus = aggressive_focus;
-	if (m_aggressive_focus)
-		setWindowFlag(Qt::WindowStaysOnTopHint, true);
 }
 
 void MarkerDialog::set_platform_activation_callback(std::function<bool()> callback)
@@ -214,8 +212,9 @@ bool MarkerDialog::eventFilter(QObject *watched, QEvent *event)
 void MarkerDialog::showEvent(QShowEvent *event)
 {
 	QDialog::showEvent(event);
-	if (!m_request_immediate_focus)
+	if (!m_request_immediate_focus || m_focus_activation_scheduled)
 		return;
+	m_focus_activation_scheduled = true;
 
 	QTimer::singleShot(0, this, [this]() {
 		focus_primary_input();
