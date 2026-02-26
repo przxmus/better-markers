@@ -17,6 +17,8 @@ class QWidget;
 
 namespace bm {
 
+class MarkerDialog;
+
 class MarkerController {
 public:
 	MarkerController(ScopeStore *store, RecordingSessionTracker *tracker, QWidget *parent_window,
@@ -39,6 +41,7 @@ private:
 	bool capture_pending_context(PendingMarkerContext *out_ctx, bool show_warning_ui) const;
 	MarkerRecord marker_from_inputs(const PendingMarkerContext &ctx, const QString &title, const QString &description,
 					int color_id) const;
+	void prepare_marker_dialog(MarkerDialog *dialog) const;
 
 	void append_marker(const QString &media_path, const MarkerRecord &marker);
 	void finalize_closed_file(const QString &closed_file);

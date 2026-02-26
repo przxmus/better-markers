@@ -10,6 +10,7 @@
 #include <QMetaObject>
 #include <QMessageBox>
 #include <QUuid>
+#include <QWidget>
 
 namespace bm {
 
@@ -60,6 +61,7 @@ void MarkerController::add_marker_from_main_button()
 	}
 
 	MarkerDialog dialog(templates, MarkerDialog::Mode::ChooseTemplate, QString(), m_parent_window);
+	prepare_marker_dialog(&dialog);
 	if (dialog.exec() != QDialog::Accepted)
 		return;
 
@@ -81,6 +83,7 @@ void MarkerController::add_marker_from_template_hotkey(const MarkerTemplate &tem
 	if (template_has_editables(templ)) {
 		QVector<MarkerTemplate> templates{templ};
 		MarkerDialog dialog(templates, MarkerDialog::Mode::FixedTemplate, templ.id, m_parent_window);
+		prepare_marker_dialog(&dialog);
 		if (dialog.exec() != QDialog::Accepted)
 			return;
 
@@ -111,6 +114,7 @@ void MarkerController::quick_custom_marker()
 
 	QVector<MarkerTemplate> none;
 	MarkerDialog dialog(none, MarkerDialog::Mode::NoTemplate, QString(), m_parent_window);
+	prepare_marker_dialog(&dialog);
 	if (dialog.exec() != QDialog::Accepted)
 		return;
 
@@ -174,6 +178,25 @@ MarkerRecord MarkerController::marker_from_inputs(const PendingMarkerContext &ct
 	marker.guid = QUuid::createUuid().toString(QUuid::WithoutBraces);
 	marker.color_id = color_id;
 	return marker;
+}
+
+void MarkerController::prepare_marker_dialog(MarkerDialog *dialog) const
+{
+	if (!dialog || !m_store)
+		return;
+
+	if (!m_store->auto_focus_marker_dialog())
+		return;
+
+	dialog->prepare_for_immediate_input(true);
+	if (m_parent_window) {
+		if (QWidget *top_level = m_parent_window->window()) {
+			top_level->raise();
+			top_level->activateWindow();
+		}
+		m_parent_window->raise();
+		m_parent_window->activateWindow();
+	}
 }
 
 void MarkerController::append_marker(const QString &media_path, const MarkerRecord &marker)

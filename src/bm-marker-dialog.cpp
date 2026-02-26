@@ -3,13 +3,18 @@
 #include "bm-colors.hpp"
 #include "bm-localization.hpp"
 
+#include <QAbstractItemView>
 #include <QComboBox>
 #include <QDialogButtonBox>
+#include <QEvent>
 #include <QFormLayout>
 #include <QHBoxLayout>
+#include <QKeyEvent>
 #include <QLabel>
 #include <QLineEdit>
 #include <QPlainTextEdit>
+#include <QShowEvent>
+#include <QTimer>
 #include <QVBoxLayout>
 
 namespace bm {
@@ -86,6 +91,12 @@ MarkerDialog::MarkerDialog(const QVector<MarkerTemplate> &templates, Mode mode, 
 		apply_template_to_fields(selected_template());
 	else if (m_mode == Mode::NoTemplate)
 		apply_template_to_fields(nullptr);
+
+	if (m_template_combo)
+		m_template_combo->installEventFilter(this);
+	m_title_edit->installEventFilter(this);
+	m_color_combo->installEventFilter(this);
+	m_description_edit->installEventFilter(this);
 }
 
 bool MarkerDialog::uses_template() const
@@ -112,6 +123,12 @@ QString MarkerDialog::marker_description() const
 int MarkerDialog::marker_color_id() const
 {
 	return m_color_combo->currentData().toInt(0);
+}
+
+void MarkerDialog::prepare_for_immediate_input(bool aggressive_focus)
+{
+	m_request_immediate_focus = true;
+	m_aggressive_focus = aggressive_focus;
 }
 
 const MarkerTemplate *MarkerDialog::selected_template() const
@@ -155,6 +172,103 @@ void MarkerDialog::apply_template_to_fields(const MarkerTemplate *templ)
 	m_title_edit->setEnabled(templ->editable_title);
 	m_description_edit->setEnabled(templ->editable_description);
 	m_color_combo->setEnabled(templ->editable_color);
+}
+
+bool MarkerDialog::eventFilter(QObject *watched, QEvent *event)
+{
+	if (event->type() == QEvent::KeyPress) {
+		auto *key_event = static_cast<QKeyEvent *>(event);
+		if (key_event->key() == Qt::Key_Return || key_event->key() == Qt::Key_Enter) {
+			if ((key_event->modifiers() & Qt::ShiftModifier) != 0) {
+				if (watched == m_description_edit) {
+					m_description_edit->insertPlainText("\n");
+					return true;
+				}
+				return false;
+			}
+
+			if (watched == m_template_combo && m_template_combo && m_template_combo->view() &&
+			    m_template_combo->view()->isVisible())
+				return false;
+
+			if (auto *current_widget = qobject_cast<QWidget *>(watched))
+				return focus_next_or_accept(current_widget);
+		}
+	}
+
+	return QDialog::eventFilter(watched, event);
+}
+
+void MarkerDialog::showEvent(QShowEvent *event)
+{
+	QDialog::showEvent(event);
+	if (!m_request_immediate_focus)
+		return;
+
+	QTimer::singleShot(0, this, [this]() {
+		focus_primary_input();
+		if (!m_aggressive_focus)
+			return;
+
+		if (QWidget *top_level = window()) {
+			top_level->raise();
+			top_level->activateWindow();
+		}
+		raise();
+		activateWindow();
+	});
+}
+
+void MarkerDialog::focus_primary_input()
+{
+	const QList<QWidget *> order = active_focus_order();
+	if (order.isEmpty())
+		return;
+
+	QWidget *first = order.first();
+	first->setFocus(Qt::ActiveWindowFocusReason);
+	if (auto *line_edit = qobject_cast<QLineEdit *>(first))
+		line_edit->selectAll();
+}
+
+bool MarkerDialog::focus_next_or_accept(QWidget *current_widget)
+{
+	const QList<QWidget *> order = active_focus_order();
+	if (order.isEmpty()) {
+		accept();
+		return true;
+	}
+
+	const int current_index = order.indexOf(current_widget);
+	if (current_index < 0) {
+		focus_primary_input();
+		return true;
+	}
+
+	if (current_index + 1 < order.size()) {
+		QWidget *next = order.at(current_index + 1);
+		next->setFocus(Qt::TabFocusReason);
+		if (auto *line_edit = qobject_cast<QLineEdit *>(next))
+			line_edit->selectAll();
+		return true;
+	}
+
+	accept();
+	return true;
+}
+
+QList<QWidget *> MarkerDialog::active_focus_order() const
+{
+	QList<QWidget *> order;
+	if (m_template_combo && m_template_combo->isEnabled() && m_template_combo->isVisible())
+		order.push_back(m_template_combo);
+	if (m_title_edit && m_title_edit->isEnabled() && m_title_edit->isVisible())
+		order.push_back(m_title_edit);
+	if (m_color_combo && m_color_combo->isEnabled() && m_color_combo->isVisible())
+		order.push_back(m_color_combo);
+	if (m_description_edit && m_description_edit->isEnabled() && m_description_edit->isVisible())
+		order.push_back(m_description_edit);
+	return order;
 }
 
 } // namespace bm
