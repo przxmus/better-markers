@@ -74,8 +74,8 @@ jobs:
           echo "prerelease=${prerelease}" >> $GITHUB_OUTPUT
           echo "commitHash=$(git rev-parse --short=9 HEAD)" >> $GITHUB_OUTPUT
 
-  build-project:
-    name: Build Project 🧱
+  build-required:
+    name: Build Required Targets (Windows + macOS) 🧱
     needs: prepare-release
     uses: ./.github/workflows/build-project.yaml
     with:
@@ -84,6 +84,27 @@ jobs:
       notarize: 'false'
       config: Release
       ref: ${{ needs.prepare-release.outputs.version }}
+      buildMacos: 'true'
+      buildUbuntu: 'false'
+      buildWindows: 'true'
+    secrets: inherit
+    permissions:
+      contents: read
+
+  build-linux:
+    name: Build Linux (Optional) 🧱
+    needs: prepare-release
+    continue-on-error: true
+    uses: ./.github/workflows/build-project.yaml
+    with:
+      package: 'true'
+      codesign: 'true'
+      notarize: 'false'
+      config: Release
+      ref: ${{ needs.prepare-release.outputs.version }}
+      buildMacos: 'false'
+      buildUbuntu: 'true'
+      buildWindows: 'false'
     secrets: inherit
     permissions:
       contents: read
@@ -91,7 +112,8 @@ jobs:
   create-release:
     name: Create Draft Release 🛫
     runs-on: ubuntu-24.04
-    needs: [prepare-release, build-project]
+    if: ${{ always() && needs.prepare-release.result == 'success' && needs.build-required.result == 'success' }}
+    needs: [prepare-release, build-required, build-linux]
     defaults:
       run:
         shell: bash
@@ -142,7 +164,7 @@ jobs:
           draft: true
           prerelease: ${{ fromJSON(needs.prepare-release.outputs.prerelease) }}
           tag_name: ${{ needs.prepare-release.outputs.version }}
-          name: ${{ needs.build-project.outputs.pluginName }} ${{ needs.prepare-release.outputs.version }}
+          name: ${{ needs.build-required.outputs.pluginName }} ${{ needs.prepare-release.outputs.version }}
           body_path: ${{ github.workspace }}/CHECKSUMS.txt
           files: |
             ${{ github.workspace }}/*.exe
