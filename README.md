@@ -1,95 +1,57 @@
 # Better Markers for OBS
 
-Better Markers lets you drop editing markers while recording in OBS, so your footage is easier to cut in Premiere Pro later.
+Better Markers lets you drop edit markers while recording in OBS and export them for Premiere Pro, DaVinci Resolve, and Final Cut Pro.
 
 ## What You Get
 
-- `Add Marker` button directly in OBS
-- Marker templates with:
-  - title
-  - description
-  - color
-  - optional editable fields while adding a marker
-- Scope support:
-  - Global
-  - Profile (with profile picker)
-  - Scene Collection (with scene collection picker)
-- Quick marker hotkeys in OBS
-- Automatic sidecar + MP4/MOV metadata embed workflow
+- `Add Marker` in OBS while recording
+- Marker templates (title, description, color)
+- Optional template fields editable at marker time
+- Hotkeys for quick markers
+- Global/Profile/Scene Collection template scopes
+- Multi-output export targets:
+  - Premiere Pro (XMP sidecar + embed for MP4/MOV)
+  - DaVinci Resolve (FCPXML timeline markers)
+  - Final Cut Pro on macOS (FCPXML clip markers)
 
-## How To Use
+## Quick Start
 
-1. Open OBS.
-2. Go to `Tools -> Better Markers Settings`.
-3. Create templates (optionally bind them to a specific Profile or Scene Collection).
-4. Assign hotkeys in `Settings -> Hotkeys`.
-5. Start recording and add markers with the dock button or hotkeys.
+1. Open OBS and go to `Tools -> Better Markers Settings`.
+2. In `Export Targets`, enable the hosts you use.
+3. Create marker templates.
+4. Optionally set hotkeys in `Settings -> Hotkeys`.
+5. Start recording and add markers from the dock or hotkeys.
 
-## Languages
+## Generated Files
 
-The plugin uses the same language as your OBS UI automatically.
+For recording file `<name>.mp4` or `<name>.mov`, Better Markers creates:
 
-Supported locales:
+- Premiere:
+  - `<name>.xmp`
+  - Marker embed is applied automatically to MP4/MOV when recording closes
+- Final Cut Pro (macOS):
+  - `<name>.better-markers.fcp.fcpxml`
+- DaVinci Resolve:
+  - `<name>.better-markers.resolve.fcpxml`
 
-- `an-ES`
-- `ar-SA`
-- `az-AZ`
-- `be-BY`
-- `bg-BG`
-- `bn-BD`
-- `ca-ES`
-- `cs-CZ`
-- `da-DK`
-- `de-DE`
-- `el-GR`
-- `en-GB`
-- `en-US`
-- `es-ES`
-- `et-EE`
-- `eu-ES`
-- `fa-IR`
-- `fi-FI`
-- `fil-PH`
-- `fr-FR`
-- `gd-GB`
-- `gl-ES`
-- `he-IL`
-- `hi-IN`
-- `hr-HR`
-- `hu-HU`
-- `hy-AM`
-- `id-ID`
-- `it-IT`
-- `ja-JP`
-- `ka-GE`
-- `kab-KAB`
-- `kmr-TR`
-- `ko-KR`
-- `lo-LA`
-- `ms-MY`
-- `nb-NO`
-- `nl-NL`
-- `pl-PL`
-- `pt-BR`
-- `pt-PT`
-- `ro-RO`
-- `ru-RU`
-- `si-LK`
-- `sk-SK`
-- `sl-SI`
-- `sr-CS`
-- `sr-SP`
-- `sv-SE`
-- `th-TH`
-- `tl-PH`
-- `tr-TR`
-- `ug-CN`
-- `uk-UA`
-- `vi-VN`
-- `zh-CN`
-- `zh-TW`
+All files are written in the same folder as the recording.
+
+## Import In Your Editor
+
+- Premiere Pro:
+  - Import/open the recording normally. Markers are already embedded (MP4/MOV) or available from the `.xmp` sidecar.
+- DaVinci Resolve:
+  - Import the recording.
+  - Import `<name>.better-markers.resolve.fcpxml` to bring in timeline markers.
+- Final Cut Pro (macOS):
+  - Import the recording.
+  - Import `<name>.better-markers.fcp.fcpxml` to bring in clip markers.
 
 ## Important Notes
 
 - Markers can be added only while recording is active (not paused).
-- If direct embed fails, marker data is kept safely and retried.
+- Export writes happen immediately after each new marker.
+- Multi-output runs in parallel: one target failing does not block the others.
+- Final Cut export is available only on macOS.
+- Resolve export uses timeline markers in v1.
+- Only MP4/MOV recordings are supported for marker export artifacts.
