@@ -9,10 +9,20 @@ on:
         type: choice
         options:
           - build
+      prNumber:
+        description: Pull request number to build (optional)
+        required: false
+        type: string
 permissions:
   contents: write
 jobs:
   check-and-build:
     if: inputs.job == 'build'
     uses: ./.github/workflows/build-project.yaml
+    with:
+      package: 'false'
+      codesign: 'false'
+      notarize: 'false'
+      config: RelWithDebInfo
+      ref: ${{ inputs.prNumber && format('refs/pull/{0}/head', inputs.prNumber) || github.ref }}
     secrets: inherit
