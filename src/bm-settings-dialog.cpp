@@ -113,9 +113,9 @@ SettingsDialog::SettingsDialog(ScopeStore *store, QWidget *parent) : QDialog(par
 	connect(m_delete_button, &QPushButton::clicked, this, [this]() { delete_template(); });
 	connect(close_btn, &QPushButton::clicked, this, &QDialog::hide);
 	connect(m_template_list, &QListWidget::itemSelectionChanged, this, [this]() { on_selection_changed(); });
-	connect(m_premiere_toggle, &QCheckBox::checkStateChanged, this, [this]() { update_export_profile_from_ui(); });
-	connect(m_resolve_toggle, &QCheckBox::checkStateChanged, this, [this]() { update_export_profile_from_ui(); });
-	connect(m_final_cut_toggle, &QCheckBox::checkStateChanged, this, [this]() { update_export_profile_from_ui(); });
+	connect(m_premiere_toggle, &QCheckBox::toggled, this, [this]() { update_export_profile_from_ui(); });
+	connect(m_resolve_toggle, &QCheckBox::toggled, this, [this]() { update_export_profile_from_ui(); });
+	connect(m_final_cut_toggle, &QCheckBox::toggled, this, [this]() { update_export_profile_from_ui(); });
 	connect(m_update_available_label, &QLabel::linkActivated, this, [this](const QString &) {
 		if (!m_release_url.isEmpty())
 			QDesktopServices::openUrl(QUrl(m_release_url));
