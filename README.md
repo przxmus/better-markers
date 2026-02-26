@@ -27,6 +27,34 @@ This places files in:
 - `C:\Program Files\obs-studio\obs-plugins\64bit\better-markers.pdb` (if included in the build)
 - `C:\Program Files\obs-studio\data\obs-plugins\better-markers\locale\*.ini`
 
+## Install (macOS)
+
+Recommended (`.pkg`):
+1. Close OBS.
+2. Open the release `.pkg` and finish the installer.
+3. Reopen OBS.
+
+Manual (`.tar.xz`):
+1. Close OBS.
+2. Extract the archive.
+3. Copy `better-markers.plugin` to:
+   - `~/Library/Application Support/obs-studio/plugins/`
+4. Reopen OBS.
+
+## Install (Linux)
+
+Recommended (`.deb`, Debian/Ubuntu based):
+1. Close OBS.
+2. Install the downloaded package:
+   - `sudo apt install ./better-markers-<version>-x86_64.deb`
+3. Reopen OBS.
+
+Manual (`.tar.xz`):
+1. Close OBS.
+2. Extract the archive.
+3. Copy the extracted `lib` and `share` folders into `/` (root), preserving paths.
+4. Reopen OBS.
+
 ## Quick Start
 
 1. Open OBS and go to `Tools -> Better Markers Settings`.
