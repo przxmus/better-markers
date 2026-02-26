@@ -121,6 +121,7 @@ function(_check_dependencies)
   file(READ "${CMAKE_CURRENT_SOURCE_DIR}/buildspec.json" buildspec)
 
   string(JSON dependency_data GET ${buildspec} dependencies)
+  set(_setup_obs_studio TRUE)
 
   foreach(dependency IN LISTS dependencies_list)
     string(JSON data GET ${dependency_data} ${dependency})
@@ -163,6 +164,24 @@ function(_check_dependencies)
           set(skip TRUE)
         endif()
       endif()
+    elseif(dependency STREQUAL obs-studio)
+      file(GLOB_RECURSE _libobs_config_files "${dependencies_dir}/*libobsConfig.cmake")
+      file(GLOB_RECURSE _obs_frontend_config_files "${dependencies_dir}/*obs-frontend-apiConfig.cmake")
+
+      if(
+        OBS_DEPENDENCY_${dependency}_${arch}_HASH STREQUAL ${hash}
+        AND _libobs_config_files
+        AND _obs_frontend_config_files
+      )
+        set(skip TRUE)
+        set(_setup_obs_studio FALSE)
+      endif()
+    endif()
+
+    if(dependency STREQUAL obs-studio)
+      set(_obs_version ${version})
+      set(_obs_destination "${destination}")
+      list(APPEND CMAKE_PREFIX_PATH "${dependencies_dir}")
     endif()
 
     if(skip)
@@ -211,9 +230,7 @@ function(_check_dependencies)
     elseif(dependency STREQUAL qt6)
       list(APPEND CMAKE_PREFIX_PATH "${dependencies_dir}/${destination}")
     elseif(dependency STREQUAL obs-studio)
-      set(_obs_version ${version})
-      set(_obs_destination "${destination}")
-      list(APPEND CMAKE_PREFIX_PATH "${dependencies_dir}")
+      set(_setup_obs_studio TRUE)
     endif()
 
     message(STATUS "Setting up ${label} (${arch}) - done")
@@ -223,5 +240,9 @@ function(_check_dependencies)
 
   set(CMAKE_PREFIX_PATH ${CMAKE_PREFIX_PATH} CACHE PATH "CMake prefix search path" FORCE)
 
-  _setup_obs_studio()
+  if(_setup_obs_studio)
+    _setup_obs_studio()
+  else()
+    message(STATUS "Using cached OBS development files (${arch})")
+  endif()
 endfunction()
