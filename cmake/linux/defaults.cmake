@@ -18,12 +18,20 @@ set(CPACK_PACKAGE_FILE_NAME "${CPACK_PACKAGE_NAME}-${CPACK_PACKAGE_VERSION}-${CM
 
 set(CPACK_GENERATOR "DEB")
 set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
-set(CPACK_DEBIAN_PACKAGE_MAINTAINER "${PLUGIN_EMAIL}")
+
+set(_debian_maintainer "${PLUGIN_EMAIL}")
+if(NOT _debian_maintainer)
+  if(PLUGIN_AUTHOR)
+    set(_debian_maintainer "${PLUGIN_AUTHOR} <noreply@users.noreply.github.com>")
+  else()
+    set(_debian_maintainer "${CMAKE_PROJECT_NAME} <noreply@users.noreply.github.com>")
+  endif()
+endif()
+set(CPACK_DEBIAN_PACKAGE_MAINTAINER "${_debian_maintainer}")
 set(CPACK_SET_DESTDIR ON)
 
-if(CMAKE_VERSION VERSION_GREATER_EQUAL 3.25.0 OR NOT CMAKE_CROSSCOMPILING)
-  set(CPACK_DEBIAN_DEBUGINFO_PACKAGE ON)
-endif()
+# Disable ddeb generation to keep Linux packaging fast and avoid extra archive failures.
+set(CPACK_DEBIAN_DEBUGINFO_PACKAGE OFF)
 
 set(CPACK_OUTPUT_FILE_PREFIX "${CMAKE_CURRENT_SOURCE_DIR}/release")
 
@@ -35,6 +43,7 @@ set(
   \\.github/
   \\.gitignore
   \\.ccache/
+  \\.deps/
   build_.*
   cmake/\\.CMakeBuildNumber
   release/
