@@ -27,33 +27,42 @@ runs:
         checkGlob: "'*.cmake' '*CMakeLists.txt'"
         diffFilter: 'ACM'
 
-    - name: Install Dependencies 🛍️
-      if: runner.os == 'Linux' && fromJSON(steps.checks.outputs.hasChangedFiles)
-      shell: bash
-      run: |
-        : Install Dependencies 🛍️
-        echo ::group::Install Dependencies
-        eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-        echo "/home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin" >> $GITHUB_PATH
-        brew install --quiet zsh
-        echo ::endgroup::
+    - name: Set Up Python 🐍
+      if: fromJSON(steps.checks.outputs.hasChangedFiles)
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.x'
+        cache: 'pip'
 
     - name: Run gersemi 🎛️
       if: fromJSON(steps.checks.outputs.hasChangedFiles)
       id: result
-      shell: zsh --no-rcs --errexit --pipefail {0}
+      shell: bash
       working-directory: ${{ github.workspace }}
       env:
         CHANGED_FILES: ${{ steps.checks.outputs.changedFiles }}
+        FAIL_CONDITION: ${{ inputs.failCondition }}
       run: |
         : Run gersemi 🎛️
-        if (( ${+RUNNER_DEBUG} )) setopt XTRACE
+        if [[ "${RUNNER_DEBUG}" ]]; then set -x; fi
 
-        print ::group::Install gersemi
-        brew install --quiet obsproject/tools/gersemi
-        print ::endgroup::
+        echo ::group::Install gersemi
+        python -m pip install --disable-pip-version-check --quiet 'gersemi>=0.12.0,<1'
+        echo ::endgroup::
 
-        print ::group::Run gersemi
-        local -a changes=(${(s:,:)CHANGED_FILES//[\[\]\'\"]/})
-        ./build-aux/run-gersemi --fail-${{ inputs.failCondition }} --check ${changes}
-        print ::endgroup::
+        echo ::group::Run gersemi
+        mapfile -t changes < <(python -c 'import json, os; [print(item) for item in json.loads(os.environ["CHANGED_FILES"])]')
+
+        if [[ "${#changes[@]}" -eq 0 ]]; then
+          exit 0
+        fi
+
+        set +e
+        gersemi -c --no-cache "${changes[@]}"
+        rc=$?
+        set -e
+
+        if [[ "${rc}" -ne 0 && "${FAIL_CONDITION}" == "error" ]]; then
+          exit "${rc}"
+        fi
+        echo ::endgroup::
