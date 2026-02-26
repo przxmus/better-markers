@@ -29,31 +29,24 @@ This places files in:
 
 ## Install (macOS)
 
-Recommended (`.pkg`):
+Available release asset: `.pkg`
+
 1. Close OBS.
 2. Open the release `.pkg` and finish the installer.
 3. Reopen OBS.
 
-Manual (`.tar.xz`):
-1. Close OBS.
-2. Extract the archive.
-3. Copy `better-markers.plugin` to:
-   - `~/Library/Application Support/obs-studio/plugins/`
-4. Reopen OBS.
+`*-source.tar.xz` is source code only, not a macOS installer.
 
 ## Install (Linux)
 
-Recommended (`.deb`, Debian/Ubuntu based):
+Available release asset: `.deb` (Debian/Ubuntu based)
+
 1. Close OBS.
 2. Install the downloaded package:
    - `sudo apt install ./better-markers-<version>-x86_64.deb`
 3. Reopen OBS.
 
-Manual (`.tar.xz`):
-1. Close OBS.
-2. Extract the archive.
-3. Copy the extracted `lib` and `share` folders into `/` (root), preserving paths.
-4. Reopen OBS.
+`*-source.tar.xz` is source code only, not a Linux binary package.
 
 ## Quick Start
 
