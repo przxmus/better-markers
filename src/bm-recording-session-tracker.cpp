@@ -3,7 +3,24 @@
 #include <util/base.h>
 #include <util/platform.h>
 
+#include <QFileInfo>
+
+#include <algorithm>
+#include <cmath>
+
 namespace bm {
+namespace {
+
+bool looks_like_media_file_path(const QString &path)
+{
+	if (path.isEmpty())
+		return false;
+
+	const QFileInfo info(path);
+	return !info.isDir();
+}
+
+} // namespace
 
 RecordingSessionTracker::~RecordingSessionTracker()
 {
@@ -97,27 +114,33 @@ int64_t RecordingSessionTracker::capture_frame_now() const
 	if (m_fps_den == 0)
 		return 0;
 
-	if (latest_dts_usec > 0) {
-		const long double numerator = static_cast<long double>(latest_dts_usec) * m_fps_num;
-		const long double denominator = static_cast<long double>(m_fps_den) * 1000000.0L;
-		const auto frame = static_cast<int64_t>(numerator / denominator);
-		return frame < 0 ? 0 : frame;
-	}
-
 	const uint64_t now_ns = os_gettime_ns();
 	uint64_t paused_ns = m_total_paused_ns;
 	if (m_recording_paused && m_pause_start_ns != 0 && now_ns > m_pause_start_ns)
 		paused_ns += now_ns - m_pause_start_ns;
 
-	if (now_ns <= m_recording_start_ns)
-		return 0;
-
-	const uint64_t active_ns = (now_ns - m_recording_start_ns > paused_ns) ? (now_ns - m_recording_start_ns - paused_ns)
+	int64_t monotonic_frame = 0;
+	if (now_ns > m_recording_start_ns) {
+		const uint64_t active_ns = (now_ns - m_recording_start_ns > paused_ns) ? (now_ns - m_recording_start_ns - paused_ns)
 										      : 0;
-	const long double numerator = static_cast<long double>(active_ns) * m_fps_num;
-	const long double denominator = static_cast<long double>(m_fps_den) * 1000000000.0L;
-	const auto frame = static_cast<int64_t>(numerator / denominator);
-	return frame < 0 ? 0 : frame;
+		const long double numerator = static_cast<long double>(active_ns) * m_fps_num;
+		const long double denominator = static_cast<long double>(m_fps_den) * 1000000000.0L;
+		const auto frame = static_cast<int64_t>(numerator / denominator);
+		monotonic_frame = frame < 0 ? 0 : frame;
+	}
+
+	if (latest_dts_usec >= 0) {
+		const long double numerator = static_cast<long double>(latest_dts_usec) * m_fps_num;
+		const long double denominator = static_cast<long double>(m_fps_den) * 1000000.0L;
+		const int64_t packet_frame = std::max<int64_t>(0, static_cast<int64_t>(numerator / denominator));
+
+		const long double fps = static_cast<long double>(m_fps_num) / static_cast<long double>(m_fps_den);
+		const int64_t max_packet_drift = std::max<int64_t>(30, static_cast<int64_t>(std::llround(fps * 3.0L)));
+		if (std::llabs(packet_frame - monotonic_frame) <= max_packet_drift)
+			return packet_frame;
+	}
+
+	return monotonic_frame;
 }
 
 void RecordingSessionTracker::packet_callback(obs_output_t *, struct encoder_packet *pkt, struct encoder_packet_time *,
@@ -258,12 +281,30 @@ void RecordingSessionTracker::detach_output_hooks()
 
 QString RecordingSessionTracker::query_current_recording_path() const
 {
+	obs_output_t *output = obs_frontend_get_recording_output();
+	if (output) {
+		obs_data_t *settings = obs_output_get_settings(output);
+		if (settings) {
+			const char *path = obs_data_get_string(settings, "path");
+			if (path && *path) {
+				const QString result = QString::fromUtf8(path);
+				obs_data_release(settings);
+				if (looks_like_media_file_path(result))
+					return result;
+			} else {
+				obs_data_release(settings);
+			}
+		}
+	}
+
 	char *path = obs_frontend_get_current_record_output_path();
 	if (path && *path) {
 		const QString result = QString::fromUtf8(path);
 		bfree(path);
-		return result;
+		if (looks_like_media_file_path(result))
+			return result;
 	}
+
 	if (path)
 		bfree(path);
 
@@ -271,7 +312,8 @@ QString RecordingSessionTracker::query_current_recording_path() const
 	if (path && *path) {
 		const QString result = QString::fromUtf8(path);
 		bfree(path);
-		return result;
+		if (looks_like_media_file_path(result))
+			return result;
 	}
 	if (path)
 		bfree(path);
