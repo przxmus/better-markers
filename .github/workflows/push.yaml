@@ -20,6 +20,7 @@ jobs:
 
   build-project:
     name: Build Project 🧱
+    if: github.ref_type == 'tag'
     uses: ./.github/workflows/build-project.yaml
     secrets: inherit
     permissions:
