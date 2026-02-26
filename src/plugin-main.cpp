@@ -72,8 +72,8 @@ bool release_tags_match(const QString &lhs, const QString &rhs)
 	if (lhs_tag.compare(rhs_tag, Qt::CaseInsensitive) == 0)
 		return true;
 
-	int lhs_suffix_index = 0;
-	int rhs_suffix_index = 0;
+	qsizetype lhs_suffix_index = 0;
+	qsizetype rhs_suffix_index = 0;
 	const QVersionNumber lhs_version = QVersionNumber::fromString(lhs_tag, &lhs_suffix_index);
 	const QVersionNumber rhs_version = QVersionNumber::fromString(rhs_tag, &rhs_suffix_index);
 	const bool lhs_semver_like = !lhs_version.isNull() && lhs_suffix_index == lhs_tag.size();
