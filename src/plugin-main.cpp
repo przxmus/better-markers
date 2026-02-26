@@ -21,6 +21,8 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <plugin-support.h>
 #include <util/base.h>
 
+#include <curl/curl.h>
+
 #include <QAction>
 #include <QDesktopServices>
 #include <QDialog>
@@ -38,6 +40,9 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QVBoxLayout>
 #include <QWidget>
 #include <memory>
+#include <mutex>
+#include <optional>
+#include <string>
 
 #include "bm-hotkey-registry.hpp"
 #include "bm-localization.hpp"
@@ -56,6 +61,11 @@ constexpr const char *LATEST_RELEASE_API_URL = "https://api.github.com/repos/prz
 constexpr int UPDATE_ACTION_SKIP = 1;
 constexpr int UPDATE_ACTION_IGNORE = 2;
 constexpr int UPDATE_ACTION_INSTALL = 3;
+
+struct ReleaseDetails {
+	QString tag;
+	QString url;
+};
 
 QString normalize_release_tag(const QString &tag)
 {
@@ -82,6 +92,98 @@ bool release_tags_match(const QString &lhs, const QString &rhs)
 		return lhs_version == rhs_version;
 
 	return false;
+}
+
+std::optional<ReleaseDetails> parse_latest_release_payload(const QByteArray &payload)
+{
+	const QJsonDocument doc = QJsonDocument::fromJson(payload);
+	if (!doc.isObject())
+		return std::nullopt;
+
+	const QJsonObject release = doc.object();
+	const QString latest_tag = release.value("tag_name").toString().trimmed();
+	if (latest_tag.isEmpty())
+		return std::nullopt;
+
+	QString release_url = release.value("html_url").toString().trimmed();
+	if (release_url.isEmpty())
+		release_url = QString("https://github.com/przxmus/better-markers/releases/tag/%1").arg(latest_tag);
+
+	return ReleaseDetails{latest_tag, release_url};
+}
+
+size_t curl_write_callback(char *ptr, size_t size, size_t nmemb, void *userdata)
+{
+	const size_t total = size * nmemb;
+	if (!userdata || !ptr || total == 0)
+		return total;
+
+	auto *response = static_cast<std::string *>(userdata);
+	response->append(ptr, total);
+	return total;
+}
+
+bool fetch_latest_release_with_curl(QByteArray *payload, QString *error)
+{
+	if (!payload)
+		return false;
+
+	static std::once_flag curl_init_once;
+	static CURLcode curl_init_result = CURLE_OK;
+	std::call_once(curl_init_once, []() { curl_init_result = static_cast<CURLcode>(curl_global_init(CURL_GLOBAL_DEFAULT)); });
+	if (curl_init_result != CURLE_OK) {
+		if (error)
+			*error = QString("curl global init failed: %1").arg(curl_easy_strerror(curl_init_result));
+		return false;
+	}
+
+	CURL *curl = curl_easy_init();
+	if (!curl) {
+		if (error)
+			*error = "curl init failed";
+		return false;
+	}
+
+	char error_buffer[CURL_ERROR_SIZE] = {};
+	std::string response;
+	struct curl_slist *headers = nullptr;
+	headers = curl_slist_append(headers, "Accept: application/vnd.github+json");
+	const std::string user_agent = std::string("User-Agent: better-markers/") + PLUGIN_VERSION;
+	headers = curl_slist_append(headers, user_agent.c_str());
+
+	curl_easy_setopt(curl, CURLOPT_URL, LATEST_RELEASE_API_URL);
+	curl_easy_setopt(curl, CURLOPT_HTTPHEADER, headers);
+	curl_easy_setopt(curl, CURLOPT_ACCEPT_ENCODING, "");
+	curl_easy_setopt(curl, CURLOPT_ERRORBUFFER, error_buffer);
+	curl_easy_setopt(curl, CURLOPT_FAILONERROR, 1L);
+	curl_easy_setopt(curl, CURLOPT_FOLLOWLOCATION, 1L);
+	curl_easy_setopt(curl, CURLOPT_TIMEOUT, 10L);
+	curl_easy_setopt(curl, CURLOPT_NOSIGNAL, 1L);
+	curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, curl_write_callback);
+	curl_easy_setopt(curl, CURLOPT_WRITEDATA, &response);
+
+	const CURLcode code = curl_easy_perform(curl);
+	long response_code = 0;
+	curl_easy_getinfo(curl, CURLINFO_RESPONSE_CODE, &response_code);
+	curl_slist_free_all(headers);
+	curl_easy_cleanup(curl);
+
+	if (code != CURLE_OK) {
+		if (error) {
+			const char *curl_error = error_buffer[0] ? error_buffer : curl_easy_strerror(code);
+			*error = QString::fromUtf8(curl_error);
+		}
+		return false;
+	}
+
+	if (response_code < 200 || response_code >= 300) {
+		if (error)
+			*error = QString("HTTP %1").arg(response_code);
+		return false;
+	}
+
+	*payload = QByteArray(response.data(), static_cast<qsizetype>(response.size()));
+	return true;
 }
 
 class BetterMarkersPlugin {
@@ -328,35 +430,47 @@ private:
 			if (reply->error() != QNetworkReply::NoError) {
 				obs_log(LOG_WARNING, "Better Markers update check failed: %s", reply->errorString().toUtf8().constData());
 				reply->deleteLater();
+				try_update_check_with_curl();
 				return;
 			}
 
-			const QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+			const QByteArray payload = reply->readAll();
 			reply->deleteLater();
-			if (!doc.isObject())
-				return;
-
-			const QJsonObject release = doc.object();
-			const QString latest_tag = release.value("tag_name").toString().trimmed();
-			if (latest_tag.isEmpty())
-				return;
-
-			if (release_tags_match(latest_tag, QString::fromUtf8(PLUGIN_VERSION)))
-				return;
-			m_has_update_available = true;
-
-			QString release_url = release.value("html_url").toString().trimmed();
-			if (release_url.isEmpty())
-				release_url = QString("https://github.com/przxmus/better-markers/releases/tag/%1").arg(latest_tag);
-			m_latest_release_url = release_url;
-			if (m_settings_dialog)
-				m_settings_dialog->set_update_availability(true, m_latest_release_url);
-
-			if (release_tags_match(m_store.skipped_update_tag(), latest_tag))
-				return;
-
-			show_update_available_dialog(latest_tag, release_url);
+			apply_update_from_payload(payload);
 		});
+	}
+
+	void try_update_check_with_curl()
+	{
+		QByteArray payload;
+		QString error;
+		if (!fetch_latest_release_with_curl(&payload, &error)) {
+			obs_log(LOG_WARNING, "Better Markers update check fallback failed: %s", error.toUtf8().constData());
+			return;
+		}
+
+		apply_update_from_payload(payload);
+	}
+
+	void apply_update_from_payload(const QByteArray &payload)
+	{
+		const std::optional<ReleaseDetails> release = parse_latest_release_payload(payload);
+		if (!release.has_value())
+			return;
+
+		const QString latest_tag = release->tag;
+		if (release_tags_match(latest_tag, QString::fromUtf8(PLUGIN_VERSION)))
+			return;
+		m_has_update_available = true;
+
+		m_latest_release_url = release->url;
+		if (m_settings_dialog)
+			m_settings_dialog->set_update_availability(true, m_latest_release_url);
+
+		if (release_tags_match(m_store.skipped_update_tag(), latest_tag))
+			return;
+
+		show_update_available_dialog(latest_tag, m_latest_release_url);
 	}
 
 	void show_update_available_dialog(const QString &latest_tag, const QString &release_url)
