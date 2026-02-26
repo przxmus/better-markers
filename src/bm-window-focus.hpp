@@ -19,10 +19,7 @@ struct WindowFocusSnapshot {
 	WindowFocusSnapshotKind kind = WindowFocusSnapshotKind::None;
 	quint64 value = 0;
 
-	bool is_valid() const
-	{
-		return kind != WindowFocusSnapshotKind::None && value != 0;
-	}
+	bool is_valid() const { return kind != WindowFocusSnapshotKind::None && value != 0; }
 };
 
 WindowFocusSnapshot capture_window_focus_snapshot();

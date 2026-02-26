@@ -123,8 +123,10 @@ void test_scope_store_auto_focus_persistence()
 void test_focus_policy_hotkey_scope()
 {
 	require(!bm::should_use_hotkey_focus_session(false, true, true), "focus session disabled when auto focus off");
-	require(!bm::should_use_hotkey_focus_session(true, false, true), "focus session disabled for non-hotkey trigger");
-	require(!bm::should_use_hotkey_focus_session(true, true, false), "focus session disabled when dialog not shown");
+	require(!bm::should_use_hotkey_focus_session(true, false, true),
+		"focus session disabled for non-hotkey trigger");
+	require(!bm::should_use_hotkey_focus_session(true, true, false),
+		"focus session disabled when dialog not shown");
 	require(bm::should_use_hotkey_focus_session(true, true, true), "focus session enabled only for hotkey dialog");
 }
 
