@@ -53,8 +53,14 @@ runs:
           exit 0
         fi
 
+        apt_cache_args=()
+        if [[ -n "${APT_ARCHIVE_DIR:-}" ]]; then
+          mkdir -p "${APT_ARCHIVE_DIR}/partial"
+          apt_cache_args=(-o "Dir::Cache::archives=${APT_ARCHIVE_DIR}")
+        fi
+
         sudo apt-get update -y
-        sudo apt-get install -y --no-install-recommends zsh
+        sudo apt-get "${apt_cache_args[@]}" install -y --no-install-recommends zsh
 
     - name: Run Ubuntu Build
       if: runner.os == 'Linux'

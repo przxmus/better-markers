@@ -265,6 +265,8 @@ jobs:
         os: [ubuntu-24.04]
     runs-on: ${{ matrix.os }}
     needs: check-event
+    env:
+      APT_ARCHIVE_DIR: ${{ github.workspace }}/.apt-cache
     defaults:
       run:
         shell: bash
@@ -295,6 +297,15 @@ jobs:
           key: ${{ runner.os }}-${{ matrix.os }}-ccache-x86_64-${{ needs.check-event.outputs.config }}
           restore-keys: |
             ${{ runner.os }}-${{ matrix.os }}-ccache-x86_64-
+
+      - name: Restore apt archive cache
+        uses: actions/cache/restore@v4
+        id: apt-cache
+        with:
+          path: ${{ env.APT_ARCHIVE_DIR }}
+          key: ${{ runner.os }}-${{ matrix.os }}-apt-x86_64-${{ hashFiles('.github/scripts/.Aptfile', '.github/scripts/utils.zsh/check_ubuntu', '.github/scripts/utils.zsh/setup_ubuntu') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.os }}-apt-x86_64-
 
       - name: Build Plugin 🧱
         uses: ./.github/actions/build-plugin
@@ -335,6 +346,13 @@ jobs:
         with:
           path: ${{ github.workspace }}/.ccache
           key: ${{ runner.os }}-${{ matrix.os }}-ccache-x86_64-${{ needs.check-event.outputs.config }}
+
+      - name: Save apt archive cache
+        uses: actions/cache/save@v4
+        if: ${{ always() && steps.apt-cache.outputs.cache-hit != 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
+        with:
+          path: ${{ env.APT_ARCHIVE_DIR }}
+          key: ${{ runner.os }}-${{ matrix.os }}-apt-x86_64-${{ hashFiles('.github/scripts/.Aptfile', '.github/scripts/utils.zsh/check_ubuntu', '.github/scripts/utils.zsh/setup_ubuntu') }}
 
   windows-build:
     name: Build for Windows 🪟

@@ -27,6 +27,12 @@ if (( ! ${+commands[apt-get]} )) {
 local -a dependencies=("${(fA)$(<${SCRIPT_HOME}/.Aptfile)}")
 local -a install_list
 local binary
+local -a apt_cache_args=()
+
+if [[ -n "${APT_ARCHIVE_DIR:-}" ]] {
+  mkdir -p "${APT_ARCHIVE_DIR}/partial"
+  apt_cache_args=(-o "Dir::Cache::archives=${APT_ARCHIVE_DIR}")
+}
 
 for dependency (${dependencies}) {
   local -a tokens=(${=dependency//(,|:|\')/})
@@ -53,7 +59,7 @@ if (( ${#install_list} )) {
   if (( _loglevel == 0 )) apt_args+=(--quiet)
 
   sudo apt-get update -qq
-  sudo apt-get ${apt_args} install ${install_list}
+  sudo apt-get ${apt_cache_args} ${apt_args} install ${install_list}
 }
 
 rehash
