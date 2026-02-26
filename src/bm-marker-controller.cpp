@@ -27,6 +27,12 @@ void MarkerController::set_active_templates(const QVector<MarkerTemplate> &templ
 	m_active_templates = templates;
 }
 
+void MarkerController::set_export_sinks(const QVector<MarkerExportSink *> &sinks)
+{
+	std::lock_guard<std::mutex> lock(m_mutex);
+	m_export_sinks = sinks;
+}
+
 void MarkerController::add_marker_from_main_button()
 {
 	PendingMarkerContext ctx;
@@ -176,16 +182,23 @@ MarkerRecord MarkerController::marker_from_inputs(const PendingMarkerContext &ct
 void MarkerController::append_marker(const QString &media_path, const MarkerRecord &marker)
 {
 	QVector<MarkerRecord> markers;
+	QVector<MarkerExportSink *> sinks;
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
 		m_markers_by_file[media_path].push_back(marker);
 		markers = m_markers_by_file.value(media_path);
+		sinks = m_export_sinks;
+	}
+
+	const MarkerExportRecordingContext ctx = make_recording_context(media_path);
+	if (!sinks.isEmpty()) {
+		if (!dispatch_marker_added(ctx, marker, markers))
+			show_warning_async(bm_text("BetterMarkers.Warning.FailedToWriteSidecar").arg("export sink failed"));
+		return;
 	}
 
 	QString error;
-	const uint32_t fps_num = m_tracker ? m_tracker->fps_num() : 30;
-	const uint32_t fps_den = m_tracker ? m_tracker->fps_den() : 1;
-	if (!m_xmp_writer.write_sidecar(media_path, markers, fps_num, fps_den, &error)) {
+	if (!m_xmp_writer.write_sidecar(media_path, markers, ctx.fps_num, ctx.fps_den, &error)) {
 		blog(LOG_ERROR, "[better-markers] failed to write sidecar for '%s': %s", media_path.toUtf8().constData(),
 			error.toUtf8().constData());
 		show_warning_async(bm_text("BetterMarkers.Warning.FailedToWriteSidecar").arg(error));
@@ -202,6 +215,20 @@ void MarkerController::finalize_closed_file(const QString &closed_file)
 {
 	if (closed_file.isEmpty())
 		return;
+
+	QVector<MarkerExportSink *> sinks;
+	{
+		std::lock_guard<std::mutex> lock(m_mutex);
+		sinks = m_export_sinks;
+	}
+	if (!sinks.isEmpty()) {
+		const MarkerExportRecordingContext ctx = make_recording_context(closed_file);
+		if (!dispatch_recording_closed(ctx))
+			show_warning_async(bm_text("BetterMarkers.Warning.FailedToWriteSidecar").arg("export sink failed"));
+		std::lock_guard<std::mutex> lock(m_mutex);
+		m_markers_by_file.remove(closed_file);
+		return;
+	}
 
 	if (!is_mp4_or_mov_path(closed_file)) {
 		std::lock_guard<std::mutex> lock(m_mutex);
@@ -233,6 +260,50 @@ void MarkerController::finalize_closed_file(const QString &closed_file)
 
 	std::lock_guard<std::mutex> lock(m_mutex);
 	m_markers_by_file.remove(closed_file);
+}
+
+MarkerExportRecordingContext MarkerController::make_recording_context(const QString &media_path) const
+{
+	MarkerExportRecordingContext ctx;
+	ctx.media_path = media_path;
+	ctx.fps_num = m_tracker ? m_tracker->fps_num() : 30;
+	ctx.fps_den = m_tracker ? m_tracker->fps_den() : 1;
+	return ctx;
+}
+
+bool MarkerController::dispatch_marker_added(const MarkerExportRecordingContext &ctx, const MarkerRecord &marker,
+					     const QVector<MarkerRecord> &full_marker_list)
+{
+	QVector<MarkerExportSink *> sinks;
+	{
+		std::lock_guard<std::mutex> lock(m_mutex);
+		sinks = m_export_sinks;
+	}
+	for (MarkerExportSink *sink : sinks) {
+		if (!sink)
+			continue;
+		QString error;
+		if (!sink->on_marker_added(ctx, marker, full_marker_list, &error))
+			return false;
+	}
+	return true;
+}
+
+bool MarkerController::dispatch_recording_closed(const MarkerExportRecordingContext &ctx)
+{
+	QVector<MarkerExportSink *> sinks;
+	{
+		std::lock_guard<std::mutex> lock(m_mutex);
+		sinks = m_export_sinks;
+	}
+	for (MarkerExportSink *sink : sinks) {
+		if (!sink)
+			continue;
+		QString error;
+		if (!sink->on_recording_closed(ctx, &error))
+			return false;
+	}
+	return true;
 }
 
 void MarkerController::show_warning_async(const QString &message) const

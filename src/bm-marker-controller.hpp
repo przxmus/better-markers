@@ -1,6 +1,7 @@
 #pragma once
 
 #include "bm-marker-data.hpp"
+#include "bm-marker-export-sink.hpp"
 #include "bm-mp4-mov-embed-engine.hpp"
 #include "bm-recovery-queue.hpp"
 #include "bm-recording-session-tracker.hpp"
@@ -22,6 +23,7 @@ public:
 			 const QString &base_store_dir);
 
 	void set_active_templates(const QVector<MarkerTemplate> &templates);
+	void set_export_sinks(const QVector<MarkerExportSink *> &sinks);
 
 	void add_marker_from_main_button();
 	void add_marker_from_template_hotkey(const MarkerTemplate &templ);
@@ -39,6 +41,10 @@ private:
 
 	void append_marker(const QString &media_path, const MarkerRecord &marker);
 	void finalize_closed_file(const QString &closed_file);
+	MarkerExportRecordingContext make_recording_context(const QString &media_path) const;
+	bool dispatch_marker_added(const MarkerExportRecordingContext &ctx, const MarkerRecord &marker,
+				   const QVector<MarkerRecord> &full_marker_list);
+	bool dispatch_recording_closed(const MarkerExportRecordingContext &ctx);
 	void show_warning_async(const QString &message) const;
 
 	static bool template_has_editables(const MarkerTemplate &templ);
@@ -53,6 +59,7 @@ private:
 
 	mutable std::mutex m_mutex;
 	QVector<MarkerTemplate> m_active_templates;
+	QVector<MarkerExportSink *> m_export_sinks;
 	QHash<QString, QVector<MarkerRecord>> m_markers_by_file;
 };
 
