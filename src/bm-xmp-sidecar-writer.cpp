@@ -142,6 +142,7 @@ QString XmpSidecarWriter::build_xmp(const QVector<MarkerRecord> &markers, uint32
 	stream << "    </rdf:Description>\n";
 	stream << "  </rdf:RDF>\n";
 	stream << "</x:xmpmeta>\n";
+	stream << "<?xpacket end=\"w\"?>";
 
 	return xml;
 }
