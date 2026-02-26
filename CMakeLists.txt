@@ -65,6 +65,7 @@ target_sources(
     src/bm-marker-controller.cpp
     src/bm-marker-controller.hpp
     src/bm-marker-data.hpp
+    src/bm-marker-export-sink.hpp
     src/bm-marker-dialog.cpp
     src/bm-marker-dialog.hpp
     src/bm-mp4-mov-embed-engine.cpp
@@ -80,6 +81,7 @@ target_sources(
     src/bm-colors.hpp
     src/bm-models.cpp
     src/bm-models.hpp
+    src/bm-premiere-xmp-sink.hpp
     src/bm-settings-dialog.cpp
     src/bm-settings-dialog.hpp
     src/bm-scope-store.cpp

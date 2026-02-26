@@ -2,11 +2,9 @@
 
 #include "bm-marker-data.hpp"
 #include "bm-marker-export-sink.hpp"
-#include "bm-mp4-mov-embed-engine.hpp"
-#include "bm-recovery-queue.hpp"
+#include "bm-premiere-xmp-sink.hpp"
 #include "bm-recording-session-tracker.hpp"
 #include "bm-scope-store.hpp"
-#include "bm-xmp-sidecar-writer.hpp"
 
 #include <QHash>
 #include <QVector>
@@ -43,8 +41,8 @@ private:
 	void finalize_closed_file(const QString &closed_file);
 	MarkerExportRecordingContext make_recording_context(const QString &media_path) const;
 	bool dispatch_marker_added(const MarkerExportRecordingContext &ctx, const MarkerRecord &marker,
-				   const QVector<MarkerRecord> &full_marker_list);
-	bool dispatch_recording_closed(const MarkerExportRecordingContext &ctx);
+				   const QVector<MarkerRecord> &full_marker_list, QString *error);
+	bool dispatch_recording_closed(const MarkerExportRecordingContext &ctx, QString *error);
 	void show_warning_async(const QString &message) const;
 
 	static bool template_has_editables(const MarkerTemplate &templ);
@@ -53,9 +51,7 @@ private:
 	RecordingSessionTracker *m_tracker = nullptr;
 	QWidget *m_parent_window = nullptr;
 
-	XmpSidecarWriter m_xmp_writer;
-	Mp4MovEmbedEngine m_embed_engine;
-	RecoveryQueue m_recovery;
+	PremiereXmpSink m_premiere_xmp_sink;
 
 	mutable std::mutex m_mutex;
 	QVector<MarkerTemplate> m_active_templates;

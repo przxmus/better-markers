@@ -15,10 +15,10 @@ namespace bm {
 
 MarkerController::MarkerController(ScopeStore *store, RecordingSessionTracker *tracker, QWidget *parent_window,
 				   const QString &base_store_dir)
-	: m_store(store), m_tracker(tracker), m_parent_window(parent_window)
+	: m_store(store), m_tracker(tracker), m_parent_window(parent_window),
+	  m_premiere_xmp_sink(base_store_dir + "/pending-embed.json")
 {
-	m_recovery.set_queue_path(base_store_dir + "/pending-embed.json");
-	m_recovery.load();
+	set_export_sinks({&m_premiere_xmp_sink});
 }
 
 void MarkerController::set_active_templates(const QVector<MarkerTemplate> &templates)
@@ -118,24 +118,7 @@ void MarkerController::on_recording_stopped(const QString &closed_file)
 
 void MarkerController::retry_recovery_queue()
 {
-	const QVector<PendingEmbedJob> jobs = m_recovery.jobs();
-	for (const PendingEmbedJob &job : jobs) {
-		if (!QFile::exists(job.media_path))
-			continue;
-		if (!is_mp4_or_mov_path(job.media_path))
-			continue;
-
-		const QString sidecar = XmpSidecarWriter::sidecar_path_for_media(job.media_path);
-		if (!QFile::exists(sidecar))
-			continue;
-
-		const EmbedResult result = m_embed_engine.embed_from_sidecar(job.media_path, sidecar);
-		if (result.ok)
-			m_recovery.remove(job.media_path);
-		else
-			m_recovery.upsert(job.media_path, result.error);
-	}
-	m_recovery.save();
+	m_premiere_xmp_sink.retry_recovery_queue();
 }
 
 bool MarkerController::capture_pending_context(PendingMarkerContext *out_ctx, bool show_warning_ui) const
@@ -182,25 +165,17 @@ MarkerRecord MarkerController::marker_from_inputs(const PendingMarkerContext &ct
 void MarkerController::append_marker(const QString &media_path, const MarkerRecord &marker)
 {
 	QVector<MarkerRecord> markers;
-	QVector<MarkerExportSink *> sinks;
 	{
 		std::lock_guard<std::mutex> lock(m_mutex);
 		m_markers_by_file[media_path].push_back(marker);
 		markers = m_markers_by_file.value(media_path);
-		sinks = m_export_sinks;
 	}
 
 	const MarkerExportRecordingContext ctx = make_recording_context(media_path);
-	if (!sinks.isEmpty()) {
-		if (!dispatch_marker_added(ctx, marker, markers))
-			show_warning_async(bm_text("BetterMarkers.Warning.FailedToWriteSidecar").arg("export sink failed"));
-		return;
-	}
-
 	QString error;
-	if (!m_xmp_writer.write_sidecar(media_path, markers, ctx.fps_num, ctx.fps_den, &error)) {
-		blog(LOG_ERROR, "[better-markers] failed to write sidecar for '%s': %s", media_path.toUtf8().constData(),
-			error.toUtf8().constData());
+	if (!dispatch_marker_added(ctx, marker, markers, &error)) {
+		blog(LOG_ERROR, "[better-markers] failed to export marker for '%s': %s", media_path.toUtf8().constData(),
+		     error.toUtf8().constData());
 		show_warning_async(bm_text("BetterMarkers.Warning.FailedToWriteSidecar").arg(error));
 		return;
 	}
@@ -216,47 +191,10 @@ void MarkerController::finalize_closed_file(const QString &closed_file)
 	if (closed_file.isEmpty())
 		return;
 
-	QVector<MarkerExportSink *> sinks;
-	{
-		std::lock_guard<std::mutex> lock(m_mutex);
-		sinks = m_export_sinks;
-	}
-	if (!sinks.isEmpty()) {
-		const MarkerExportRecordingContext ctx = make_recording_context(closed_file);
-		if (!dispatch_recording_closed(ctx))
-			show_warning_async(bm_text("BetterMarkers.Warning.FailedToWriteSidecar").arg("export sink failed"));
-		std::lock_guard<std::mutex> lock(m_mutex);
-		m_markers_by_file.remove(closed_file);
-		return;
-	}
-
-	if (!is_mp4_or_mov_path(closed_file)) {
-		std::lock_guard<std::mutex> lock(m_mutex);
-		m_markers_by_file.remove(closed_file);
-		return;
-	}
-
-	const QString sidecar = XmpSidecarWriter::sidecar_path_for_media(closed_file);
-	if (!QFile::exists(sidecar)) {
-		std::lock_guard<std::mutex> lock(m_mutex);
-		m_markers_by_file.remove(closed_file);
-		return;
-	}
-
-	const EmbedResult result = m_embed_engine.embed_from_sidecar(closed_file, sidecar);
-	if (result.ok) {
-		m_recovery.remove(closed_file);
-		m_recovery.save();
-		blog(LOG_INFO, "[better-markers] embedded XMP into '%s'", closed_file.toUtf8().constData());
-	} else {
-		m_recovery.upsert(closed_file, result.error);
-		m_recovery.save();
-		blog(LOG_WARNING,
-			"[better-markers] failed to embed XMP into '%s': %s (sidecar kept, recovery queued)",
-			closed_file.toUtf8().constData(), result.error.toUtf8().constData());
-		show_warning_async(
-			bm_text("BetterMarkers.Warning.FailedToEmbedXmp").arg(result.error));
-	}
+	const MarkerExportRecordingContext ctx = make_recording_context(closed_file);
+	QString error;
+	if (!dispatch_recording_closed(ctx, &error))
+		show_warning_async(bm_text("BetterMarkers.Warning.FailedToEmbedXmp").arg(error));
 
 	std::lock_guard<std::mutex> lock(m_mutex);
 	m_markers_by_file.remove(closed_file);
@@ -272,7 +210,7 @@ MarkerExportRecordingContext MarkerController::make_recording_context(const QStr
 }
 
 bool MarkerController::dispatch_marker_added(const MarkerExportRecordingContext &ctx, const MarkerRecord &marker,
-					     const QVector<MarkerRecord> &full_marker_list)
+					     const QVector<MarkerRecord> &full_marker_list, QString *error)
 {
 	QVector<MarkerExportSink *> sinks;
 	{
@@ -282,14 +220,19 @@ bool MarkerController::dispatch_marker_added(const MarkerExportRecordingContext 
 	for (MarkerExportSink *sink : sinks) {
 		if (!sink)
 			continue;
-		QString error;
-		if (!sink->on_marker_added(ctx, marker, full_marker_list, &error))
+		QString sink_error;
+		if (!sink->on_marker_added(ctx, marker, full_marker_list, &sink_error)) {
+			blog(LOG_ERROR, "[better-markers][%s] marker export failed: %s", sink->sink_name().toUtf8().constData(),
+			     sink_error.toUtf8().constData());
+			if (error)
+				*error = sink_error;
 			return false;
+		}
 	}
 	return true;
 }
 
-bool MarkerController::dispatch_recording_closed(const MarkerExportRecordingContext &ctx)
+bool MarkerController::dispatch_recording_closed(const MarkerExportRecordingContext &ctx, QString *error)
 {
 	QVector<MarkerExportSink *> sinks;
 	{
@@ -299,9 +242,14 @@ bool MarkerController::dispatch_recording_closed(const MarkerExportRecordingCont
 	for (MarkerExportSink *sink : sinks) {
 		if (!sink)
 			continue;
-		QString error;
-		if (!sink->on_recording_closed(ctx, &error))
+		QString sink_error;
+		if (!sink->on_recording_closed(ctx, &sink_error)) {
+			blog(LOG_WARNING, "[better-markers][%s] finalize export failed: %s",
+			     sink->sink_name().toUtf8().constData(), sink_error.toUtf8().constData());
+			if (error)
+				*error = sink_error;
 			return false;
+		}
 	}
 	return true;
 }
