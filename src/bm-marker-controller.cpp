@@ -238,12 +238,13 @@ bool MarkerController::dispatch_marker_added(const MarkerExportRecordingContext 
 		if (!sink->on_marker_added(ctx, marker, full_marker_list, &sink_error)) {
 			blog(LOG_ERROR, "[better-markers][%s] marker export failed: %s", sink->sink_name().toUtf8().constData(),
 			     sink_error.toUtf8().constData());
-			if (error)
-				*error = sink_error;
-			return false;
+			if (error) {
+				const QString prefix = error->isEmpty() ? QString() : QString("; ");
+				*error += prefix + QString("%1: %2").arg(sink->sink_name(), sink_error);
+			}
 		}
 	}
-	return true;
+	return !error || error->isEmpty();
 }
 
 bool MarkerController::dispatch_recording_closed(const MarkerExportRecordingContext &ctx, QString *error)
@@ -260,12 +261,13 @@ bool MarkerController::dispatch_recording_closed(const MarkerExportRecordingCont
 		if (!sink->on_recording_closed(ctx, &sink_error)) {
 			blog(LOG_WARNING, "[better-markers][%s] finalize export failed: %s",
 			     sink->sink_name().toUtf8().constData(), sink_error.toUtf8().constData());
-			if (error)
-				*error = sink_error;
-			return false;
+			if (error) {
+				const QString prefix = error->isEmpty() ? QString() : QString("; ");
+				*error += prefix + QString("%1: %2").arg(sink->sink_name(), sink_error);
+			}
 		}
 	}
-	return true;
+	return !error || error->isEmpty();
 }
 
 void MarkerController::show_warning_async(const QString &message) const
