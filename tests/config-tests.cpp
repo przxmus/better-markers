@@ -1,3 +1,4 @@
+#include "bm-focus-policy.hpp"
 #include "bm-scope-store.hpp"
 
 #include <QFile>
@@ -119,6 +120,21 @@ void test_scope_store_auto_focus_persistence()
 	require(!reloaded.auto_focus_marker_dialog(), "persisted auto focus value matches");
 }
 
+void test_focus_policy_hotkey_scope()
+{
+	require(!bm::should_use_hotkey_focus_session(false, true, true), "focus session disabled when auto focus off");
+	require(!bm::should_use_hotkey_focus_session(true, false, true), "focus session disabled for non-hotkey trigger");
+	require(!bm::should_use_hotkey_focus_session(true, true, false), "focus session disabled when dialog not shown");
+	require(bm::should_use_hotkey_focus_session(true, true, true), "focus session enabled only for hotkey dialog");
+}
+
+void test_focus_policy_restore_condition()
+{
+	require(!bm::should_restore_focus_after_dialog(false, true), "restore disabled when focus session inactive");
+	require(!bm::should_restore_focus_after_dialog(true, false), "restore disabled when dialog was not executed");
+	require(bm::should_restore_focus_after_dialog(true, true), "restore enabled for active executed dialog");
+}
+
 } // namespace
 
 void run_config_tests()
@@ -128,4 +144,6 @@ void run_config_tests()
 	test_scope_store_migration_defaults();
 	test_scope_store_skipped_update_tag_persistence();
 	test_scope_store_auto_focus_persistence();
+	test_focus_policy_hotkey_scope();
+	test_focus_policy_restore_condition();
 }

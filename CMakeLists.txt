@@ -63,6 +63,7 @@ target_sources(
   PRIVATE
     src/bm-hotkey-registry.cpp
     src/bm-hotkey-registry.hpp
+    src/bm-focus-policy.hpp
     src/bm-marker-controller.cpp
     src/bm-marker-controller.hpp
     src/bm-marker-data.hpp

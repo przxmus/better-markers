@@ -1,5 +1,6 @@
 #include "bm-marker-controller.hpp"
 
+#include "bm-focus-policy.hpp"
 #include "bm-localization.hpp"
 #include "bm-marker-dialog.hpp"
 #include "bm-window-focus.hpp"
@@ -22,7 +23,8 @@ class HotkeyDialogFocusSession {
 public:
 	explicit HotkeyDialogFocusSession(const ScopeStore *store)
 	{
-		m_enabled = store && store->auto_focus_marker_dialog();
+		const bool auto_focus_enabled = store && store->auto_focus_marker_dialog();
+		m_enabled = should_use_hotkey_focus_session(auto_focus_enabled, true, true);
 		if (m_enabled)
 			m_snapshot = capture_window_focus_snapshot();
 	}
@@ -38,7 +40,7 @@ public:
 
 	void restore() const
 	{
-		if (!m_enabled || !m_snapshot.is_valid())
+		if (!should_restore_focus_after_dialog(m_enabled, true) || !m_snapshot.is_valid())
 			return;
 
 		restore_window_focus(m_snapshot);
