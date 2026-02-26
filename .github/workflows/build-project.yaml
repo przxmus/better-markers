@@ -245,14 +245,14 @@ jobs:
 
       - name: Save ccache
         uses: actions/cache/save@v4
-        if: ${{ always() && github.event_name != 'pull_request' && steps.ccache-cache.outputs.cache-hit != 'true' }}
+        if: ${{ always() && steps.ccache-cache.outputs.cache-hit != 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
         with:
           path: ${{ github.workspace }}/.ccache
           key: ${{ runner.os }}-ccache-${{ needs.check-event.outputs.config }}
 
       - name: Save dependency cache
         uses: actions/cache/save@v4
-        if: ${{ always() && github.event_name != 'pull_request' && steps.deps-cache.outputs.cache-hit != 'true' }}
+        if: ${{ always() && steps.deps-cache.outputs.cache-hit != 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
         with:
           path: ${{ github.workspace }}/.deps
           key: ${{ runner.os }}-deps-${{ hashFiles('buildspec.json', 'cmake/common/buildspec_common.cmake', 'cmake/macos/buildspec.cmake', 'cmake/windows/buildspec.cmake') }}
@@ -330,7 +330,7 @@ jobs:
 
       - name: Save ccache
         uses: actions/cache/save@v4
-        if: ${{ always() && github.event_name != 'pull_request' && steps.ccache-cache.outputs.cache-hit != 'true' }}
+        if: ${{ always() && steps.ccache-cache.outputs.cache-hit != 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
         with:
           path: ${{ github.workspace }}/.ccache
           key: ${{ runner.os }}-${{ matrix.os }}-ccache-x86_64-${{ needs.check-event.outputs.config }}
@@ -395,7 +395,7 @@ jobs:
 
       - name: Save dependency cache
         uses: actions/cache/save@v4
-        if: ${{ always() && github.event_name != 'pull_request' && steps.deps-cache.outputs.cache-hit != 'true' }}
+        if: ${{ always() && steps.deps-cache.outputs.cache-hit != 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
         with:
           path: ${{ github.workspace }}/.deps
           key: ${{ runner.os }}-deps-${{ hashFiles('buildspec.json', 'cmake/common/buildspec_common.cmake', 'cmake/macos/buildspec.cmake', 'cmake/windows/buildspec.cmake') }}
