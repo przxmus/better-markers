@@ -56,7 +56,7 @@ if (( ! (${skips[(Ie)all]} + ${skips[(Ie)deps]}) )) {
     )
   }
 
-  sudo apt-get ${apt_cache_args} ${apt_args} \
+  sudo apt-get ${apt_cache_args} ${apt_args} install \
     build-essential \
     libgles2-mesa-dev \
     libsimde-dev \
