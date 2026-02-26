@@ -1,5 +1,6 @@
 #include "bm-fcpxml-writer.hpp"
 
+#include <QDir>
 #include <QFileInfo>
 #include <QSaveFile>
 #include <QTextStream>
@@ -135,7 +136,10 @@ QString FcpxmlWriter::build_document(const FcpxmlDocumentInput &input) const
 	       << "\" tcStart=\"0s\" tcFormat=\"NDF\" audioLayout=\"stereo\" audioRate=\"48k\">\n";
 	stream << "          <spine>\n";
 	stream << "            <asset-clip ref=\"r2\" name=\"" << xml_escape(clip_name)
-	       << "\" offset=\"0s\" start=\"0s\" duration=\"" << timeline_duration << "\"/>\n";
+	       << "\" offset=\"0s\" start=\"0s\" duration=\"" << timeline_duration << "\">\n";
+	if (input.profile == FcpxmlProfile::FinalCutClipMarkers)
+		append_final_cut_clip_markers(stream, input.markers, input.fps_num, input.fps_den);
+	stream << "            </asset-clip>\n";
 	stream << "          </spine>\n";
 	stream << "        </sequence>\n";
 	stream << "      </project>\n";
@@ -144,6 +148,21 @@ QString FcpxmlWriter::build_document(const FcpxmlDocumentInput &input) const
 	stream << "</fcpxml>\n";
 
 	return xml;
+}
+
+void FcpxmlWriter::append_final_cut_clip_markers(QTextStream &stream, const QVector<MarkerRecord> &markers,
+						 uint32_t fps_num, uint32_t fps_den) const
+{
+	const QString marker_duration = frame_duration_rational(fps_num, fps_den);
+	for (const MarkerRecord &marker : markers) {
+		const QString start = rational_time_from_frames(marker.start_frame, fps_num, fps_den);
+		QString value = marker.name.trimmed();
+		if (value.isEmpty())
+			value = "Marker";
+
+		stream << "              <marker start=\"" << start << "\" duration=\"" << marker_duration
+		       << "\" value=\"" << xml_escape(value) << "\" note=\"" << xml_escape(marker.comment) << "\"/>\n";
+	}
 }
 
 QString FcpxmlWriter::xml_escape(const QString &value)

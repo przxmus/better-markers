@@ -3,6 +3,7 @@
 #include "bm-marker-data.hpp"
 
 #include <QString>
+#include <QTextStream>
 #include <QVector>
 
 #include <cstdint>
@@ -33,6 +34,8 @@ public:
 	QString build_document(const FcpxmlDocumentInput &input) const;
 
 private:
+	void append_final_cut_clip_markers(QTextStream &stream, const QVector<MarkerRecord> &markers, uint32_t fps_num,
+					   uint32_t fps_den) const;
 	static QString xml_escape(const QString &value);
 	static int64_t compute_timeline_duration_frames(const QVector<MarkerRecord> &markers);
 };
