@@ -45,12 +45,35 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake/common")
 
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/buildspec.json" buildspec)
 
-string(JSON _name GET ${buildspec} name)
-string(JSON _website GET ${buildspec} website)
-string(JSON _author GET ${buildspec} author)
-string(JSON _email GET ${buildspec} email)
-string(JSON _version GET ${buildspec} version)
-string(JSON _bundleId GET ${buildspec} platformConfig macos bundleId)
+string(JSON _name ERROR_VARIABLE _name_error GET ${buildspec} name)
+if(_name_error)
+  message(FATAL_ERROR "Required buildspec key 'name' is missing or invalid.")
+endif()
+
+string(JSON _version ERROR_VARIABLE _version_error GET ${buildspec} version)
+if(_version_error)
+  message(FATAL_ERROR "Required buildspec key 'version' is missing or invalid.")
+endif()
+
+string(JSON _website ERROR_VARIABLE _website_error GET ${buildspec} website)
+if(_website_error)
+  set(_website "")
+endif()
+
+string(JSON _author ERROR_VARIABLE _author_error GET ${buildspec} author)
+if(_author_error)
+  set(_author "")
+endif()
+
+string(JSON _email ERROR_VARIABLE _email_error GET ${buildspec} email)
+if(_email_error)
+  set(_email "")
+endif()
+
+string(JSON _bundleId ERROR_VARIABLE _bundleId_error GET ${buildspec} platformConfig macos bundleId)
+if(_bundleId_error)
+  set(_bundleId "")
+endif()
 
 set(PLUGIN_AUTHOR ${_author})
 set(PLUGIN_WEBSITE ${_website})
