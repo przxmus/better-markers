@@ -33,13 +33,12 @@
   },
   "platformConfig": {
     "macos": {
-      "bundleId": "com.przxmus.better-markers"
+      "bundleId": "dev.przxmus.better-markers"
     }
   },
   "name": "better-markers",
   "displayName": "Better Markers",
   "version": "0.9.0",
   "author": "przxmus",
-  "website": "https://github.com/przxmus/better-markers",
-  "email": "me@example.com"
+  "website": "https://github.com/przxmus/better-markers"
 }
