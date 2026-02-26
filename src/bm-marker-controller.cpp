@@ -67,10 +67,7 @@ public:
 			m_flag->store(false);
 	}
 
-	bool acquired() const
-	{
-		return m_acquired;
-	}
+	bool acquired() const { return m_acquired; }
 
 private:
 	std::atomic_bool *m_flag = nullptr;
@@ -84,10 +81,7 @@ public:
 		m_enabled = store && store->pause_recording_during_marker_dialog();
 	}
 
-	~DialogRecordingPauseSession()
-	{
-		resume_if_needed();
-	}
+	~DialogRecordingPauseSession() { resume_if_needed(); }
 
 	void pause_if_needed()
 	{
@@ -133,7 +127,7 @@ private:
 	bool m_paused_by_plugin = false;
 };
 
-	} // namespace
+} // namespace
 
 MarkerController::MarkerController(ScopeStore *store, RecordingSessionTracker *tracker, QWidget *parent_window,
 				   const QString &base_store_dir)
