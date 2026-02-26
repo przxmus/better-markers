@@ -107,8 +107,11 @@ set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_nam
 if(BUILD_TESTING AND ENABLE_QT)
   add_executable(
     better-markers-tests
+    tests/config-tests.cpp
     tests/fcpxml-tests.cpp
     src/bm-fcpxml-writer.cpp
+    src/bm-models.cpp
+    src/bm-scope-store.cpp
   )
   target_include_directories(better-markers-tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
   target_compile_features(better-markers-tests PRIVATE cxx_std_17)

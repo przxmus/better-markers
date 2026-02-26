@@ -80,11 +80,14 @@ void test_resolve_profile_serialization()
 
 } // namespace
 
+void run_config_tests();
+
 int main()
 {
 	test_time_conversion();
 	test_artifact_paths();
 	test_final_cut_profile_serialization();
 	test_resolve_profile_serialization();
+	run_config_tests();
 	return 0;
 }
