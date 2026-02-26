@@ -10,6 +10,14 @@
 namespace bm {
 namespace {
 
+const char *text_or_fallback(const char *key, const char *fallback)
+{
+	const char *localized = obs_module_text(key);
+	if (!localized || !*localized)
+		return fallback;
+	return localized;
+}
+
 QJsonArray obs_array_to_qjson(obs_data_array_t *array)
 {
 	QJsonArray json_array;
@@ -147,10 +155,12 @@ void HotkeyRegistry::register_quick_hotkeys()
 		return;
 
 	m_quick_marker = obs_hotkey_register_frontend("BetterMarkers.QuickMarker",
-						      obs_module_text("BetterMarkers.Hotkey.QuickMarker"),
+						      text_or_fallback("BetterMarkers.Hotkey.QuickMarker",
+								       "Better Markers: Quick Marker"),
 						      &HotkeyRegistry::quick_marker_callback, this);
 	m_quick_custom_marker = obs_hotkey_register_frontend("BetterMarkers.QuickCustomMarker",
-						     obs_module_text("BetterMarkers.Hotkey.QuickCustomMarker"),
+						     text_or_fallback("BetterMarkers.Hotkey.QuickCustomMarker",
+								      "Better Markers: Quick Custom Marker"),
 						     &HotkeyRegistry::quick_marker_callback, this);
 
 	const QJsonObject quick = m_store->for_scope(TemplateScope::Global).quick_hotkeys;
