@@ -85,12 +85,23 @@ bool RecordingSessionTracker::is_recording_paused() const
 bool RecordingSessionTracker::can_add_marker() const
 {
 	std::lock_guard<std::mutex> lock(m_mutex);
-	return m_recording_active && !m_recording_paused && !m_current_media_path.isEmpty();
+	return m_recording_active && !m_recording_paused;
 }
 
-QString RecordingSessionTracker::current_media_path() const
+QString RecordingSessionTracker::current_media_path()
 {
+	{
+		std::lock_guard<std::mutex> lock(m_mutex);
+		if (looks_like_media_file_path(m_current_media_path))
+			return m_current_media_path;
+	}
+
+	const QString resolved = query_current_recording_path();
+	if (!looks_like_media_file_path(resolved))
+		return {};
+
 	std::lock_guard<std::mutex> lock(m_mutex);
+	m_current_media_path = resolved;
 	return m_current_media_path;
 }
 
@@ -305,16 +316,6 @@ QString RecordingSessionTracker::query_current_recording_path() const
 			return result;
 	}
 
-	if (path)
-		bfree(path);
-
-	path = obs_frontend_get_last_recording();
-	if (path && *path) {
-		const QString result = QString::fromUtf8(path);
-		bfree(path);
-		if (looks_like_media_file_path(result))
-			return result;
-	}
 	if (path)
 		bfree(path);
 

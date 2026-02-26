@@ -30,7 +30,7 @@ public:
 	bool is_recording_paused() const;
 	bool can_add_marker() const;
 
-	QString current_media_path() const;
+	QString current_media_path();
 	uint32_t fps_num() const;
 	uint32_t fps_den() const;
 
