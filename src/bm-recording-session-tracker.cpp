@@ -312,6 +312,7 @@ QString RecordingSessionTracker::query_current_recording_path() const
 	if (path && *path) {
 		const QString result = QString::fromUtf8(path);
 		bfree(path);
+		path = nullptr;
 		if (looks_like_media_file_path(result))
 			return result;
 	}
