@@ -29,6 +29,8 @@ public:
 	QVector<MarkerTemplate> merged_templates() const;
 	ExportProfile &export_profile();
 	const ExportProfile &export_profile() const;
+	QString skipped_update_tag() const;
+	void set_skipped_update_tag(const QString &tag);
 
 	QString global_store_path() const;
 	QString profile_store_path() const;
@@ -46,6 +48,7 @@ private:
 	ScopedStoreData m_profile;
 	ScopedStoreData m_scene;
 	ExportProfile m_export_profile;
+	QString m_skipped_update_tag;
 };
 
 } // namespace bm

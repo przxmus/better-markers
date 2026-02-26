@@ -75,6 +75,26 @@ void test_scope_store_migration_defaults()
 	const QJsonObject export_profile = doc.object().value("exportProfile").toObject();
 	require(!export_profile.isEmpty(), "migrated global store includes exportProfile");
 	require(export_profile.value("enablePremiereXmp").toBool(false), "migrated exportProfile Premiere value");
+	require(doc.object().value("skippedUpdateTag").toString().isEmpty(), "migrated global store has empty skipped tag");
+}
+
+void test_scope_store_skipped_update_tag_persistence()
+{
+	QTemporaryDir temp_dir;
+	require(temp_dir.isValid(), "temporary directory created for skipped tag");
+
+	bm::ScopeStore store;
+	store.set_base_dir(temp_dir.path());
+	require(store.load_global(), "load empty global store for skipped tag");
+	require(store.skipped_update_tag().isEmpty(), "default skipped tag is empty");
+
+	store.set_skipped_update_tag("v1.0.1");
+	require(store.save_global(), "save global store with skipped tag");
+
+	bm::ScopeStore reloaded;
+	reloaded.set_base_dir(temp_dir.path());
+	require(reloaded.load_global(), "reload global store with skipped tag");
+	require(reloaded.skipped_update_tag() == "v1.0.1", "persisted skipped tag matches");
 }
 
 } // namespace
@@ -84,4 +104,5 @@ void run_config_tests()
 	test_export_profile_defaults();
 	test_export_profile_fallback_values();
 	test_scope_store_migration_defaults();
+	test_scope_store_skipped_update_tag_persistence();
 }
