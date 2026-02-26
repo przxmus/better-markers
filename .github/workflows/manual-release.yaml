@@ -1,0 +1,153 @@
+name: Manual Release
+run-name: Manual release ${{ inputs.version }} 🚀
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release (for example 1.2.3 or 1.2.3-rc1)
+        required: true
+        type: string
+permissions:
+  contents: write
+jobs:
+  prepare-release:
+    name: Bump Version And Tag 🏷️
+    runs-on: ubuntu-24.04
+    outputs:
+      version: ${{ steps.prepare.outputs.version }}
+      prerelease: ${{ steps.prepare.outputs.prerelease }}
+      commitHash: ${{ steps.prepare.outputs.commitHash }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate, Bump, Commit And Tag ✅
+        id: prepare
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          : Validate, Bump, Commit And Tag ✅
+          if [[ "${RUNNER_DEBUG}" ]]; then set -x; fi
+          shopt -s extglob
+
+          case "${VERSION}" in
+            +([0-9]).+([0-9]).+([0-9]) )
+              prerelease=false
+              ;;
+            +([0-9]).+([0-9]).+([0-9])-@(beta|rc)*([0-9]) )
+              prerelease=true
+              ;;
+            *)
+              echo "::error::Invalid version format: ${VERSION}"
+              exit 2
+              ;;
+          esac
+
+          if git rev-parse --verify --quiet "refs/tags/${VERSION}" > /dev/null; then
+            echo "::error::Tag ${VERSION} already exists locally."
+            exit 2
+          fi
+
+          if git ls-remote --tags --exit-code origin "refs/tags/${VERSION}" > /dev/null 2>&1; then
+            echo "::error::Tag ${VERSION} already exists."
+            exit 2
+          fi
+
+          jq --arg version "${VERSION}" '.version = $version' buildspec.json > buildspec.json.tmp
+          mv buildspec.json.tmp buildspec.json
+
+          git add buildspec.json
+
+          if git diff --cached --quiet; then
+            echo "buildspec.json already has version ${VERSION}; skipping bump commit."
+          else
+            git -c user.name="github-actions[bot]" -c user.email="41898282+github-actions[bot]@users.noreply.github.com" \
+              commit -m "chore(release): bump version to ${VERSION}"
+            git push origin "HEAD:${GITHUB_REF_NAME}"
+          fi
+
+          git tag "${VERSION}"
+          git push origin "${VERSION}"
+
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "prerelease=${prerelease}" >> $GITHUB_OUTPUT
+          echo "commitHash=$(git rev-parse --short=9 HEAD)" >> $GITHUB_OUTPUT
+
+  build-project:
+    name: Build Project 🧱
+    needs: prepare-release
+    uses: ./.github/workflows/build-project.yaml
+    with:
+      package: 'true'
+      codesign: 'true'
+      notarize: 'false'
+      config: Release
+      ref: ${{ needs.prepare-release.outputs.version }}
+    secrets: inherit
+    permissions:
+      contents: read
+
+  create-release:
+    name: Create Draft Release 🛫
+    runs-on: ubuntu-24.04
+    needs: [prepare-release, build-project]
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Download Build Artifacts 📥
+        uses: actions/download-artifact@v4
+
+      - name: Rename Files 🏷️
+        run: |
+          : Rename Files 🏷️
+          if [[ "${RUNNER_DEBUG}" ]]; then set -x; fi
+          shopt -s extglob
+          shopt -s nullglob
+
+          root_dir="$(pwd)"
+          commit_hash="${{ needs.prepare-release.outputs.commitHash }}"
+
+          variants=(
+            'windows-x64;zip|exe'
+            'macos-universal;tar.xz|pkg'
+            'ubuntu-24.04-x86_64;tar.xz|deb|ddeb'
+            'sources;tar.xz'
+          )
+
+          for variant_data in "${variants[@]}"; do
+            IFS=';' read -r variant suffix <<< "${variant_data}"
+            candidates=(*-${variant}-${commit_hash}/@(*|*-dbgsym).@(${suffix}))
+
+            for candidate in "${candidates[@]}"; do
+              mv "${candidate}" "${root_dir}"
+            done
+          done
+
+      - name: Generate Checksums 🪪
+        run: |
+          : Generate Checksums 🪪
+          if [[ "${RUNNER_DEBUG}" ]]; then set -x; fi
+          shopt -s extglob
+
+          echo "### Checksums" > ${{ github.workspace }}/CHECKSUMS.txt
+          for file in ${{ github.workspace }}/@(*.exe|*.deb|*.ddeb|*.pkg|*.tar.xz|*.zip); do
+            echo "    ${file##*/}: $(sha256sum "${file}" | cut -d " " -f 1)" >> ${{ github.workspace }}/CHECKSUMS.txt
+          done
+
+      - name: Create Draft Release 🛫
+        uses: softprops/action-gh-release@9d7c94cfd0a1f3ed45544c887983e9fa900f0564
+        with:
+          draft: true
+          prerelease: ${{ fromJSON(needs.prepare-release.outputs.prerelease) }}
+          tag_name: ${{ needs.prepare-release.outputs.version }}
+          name: ${{ needs.build-project.outputs.pluginName }} ${{ needs.prepare-release.outputs.version }}
+          body_path: ${{ github.workspace }}/CHECKSUMS.txt
+          files: |
+            ${{ github.workspace }}/*.exe
+            ${{ github.workspace }}/*.zip
+            ${{ github.workspace }}/*.pkg
+            ${{ github.workspace }}/*.deb
+            ${{ github.workspace }}/*.ddeb
+            ${{ github.workspace }}/*.tar.xz
