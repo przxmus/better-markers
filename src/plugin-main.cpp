@@ -22,9 +22,18 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <util/base.h>
 
 #include <QAction>
+#include <QDesktopServices>
+#include <QDialog>
+#include <QHBoxLayout>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QLabel>
 #include <QMainWindow>
+#include <QNetworkAccessManager>
+#include <QNetworkReply>
+#include <QNetworkRequest>
+#include <QUrl>
+#include <QVersionNumber>
 #include <QPushButton>
 #include <QVBoxLayout>
 #include <QWidget>
@@ -43,6 +52,37 @@ namespace {
 
 constexpr const char *SCENE_STORE_KEY = "better-markers.scene-store";
 constexpr const char *DOCK_ID = "better-markers.dock";
+constexpr const char *LATEST_RELEASE_API_URL = "https://api.github.com/repos/przxmus/better-markers/releases/latest";
+constexpr int UPDATE_ACTION_SKIP = 1;
+constexpr int UPDATE_ACTION_IGNORE = 2;
+constexpr int UPDATE_ACTION_INSTALL = 3;
+
+QString normalize_release_tag(const QString &tag)
+{
+	QString normalized = tag.trimmed();
+	if (normalized.startsWith('v', Qt::CaseInsensitive))
+		normalized.remove(0, 1);
+	return normalized;
+}
+
+bool release_tags_match(const QString &lhs, const QString &rhs)
+{
+	const QString lhs_tag = normalize_release_tag(lhs);
+	const QString rhs_tag = normalize_release_tag(rhs);
+	if (lhs_tag.compare(rhs_tag, Qt::CaseInsensitive) == 0)
+		return true;
+
+	int lhs_suffix_index = 0;
+	int rhs_suffix_index = 0;
+	const QVersionNumber lhs_version = QVersionNumber::fromString(lhs_tag, &lhs_suffix_index);
+	const QVersionNumber rhs_version = QVersionNumber::fromString(rhs_tag, &rhs_suffix_index);
+	const bool lhs_semver_like = !lhs_version.isNull() && lhs_suffix_index == lhs_tag.size();
+	const bool rhs_semver_like = !rhs_version.isNull() && rhs_suffix_index == rhs_tag.size();
+	if (lhs_semver_like && rhs_semver_like)
+		return lhs_version == rhs_version;
+
+	return false;
+}
 
 class BetterMarkersPlugin {
 public:
@@ -99,6 +139,7 @@ public:
 		refresh_runtime_bindings();
 		m_tracker.sync_from_frontend_state();
 		m_controller->retry_recovery_queue();
+		check_for_updates_on_startup();
 
 		obs_log(LOG_INFO, "plugin loaded successfully (version %s)", PLUGIN_VERSION);
 		return true;
@@ -124,6 +165,13 @@ public:
 		if (m_dock_widget)
 			m_dock_widget->deleteLater();
 		m_dock_widget = nullptr;
+		if (m_update_check_reply) {
+			QObject::disconnect(m_update_check_reply, nullptr, nullptr, nullptr);
+			m_update_check_reply->abort();
+			m_update_check_reply->deleteLater();
+			m_update_check_reply = nullptr;
+		}
+		m_update_network.reset();
 
 		obs_log(LOG_INFO, "plugin unloaded");
 	}
@@ -260,11 +308,99 @@ private:
 			bfree(scene_collection);
 	}
 
+	void check_for_updates_on_startup()
+	{
+		if (!m_update_network)
+			m_update_network = std::make_unique<QNetworkAccessManager>();
+
+		QNetworkRequest request(QUrl(QString::fromUtf8(LATEST_RELEASE_API_URL)));
+		request.setRawHeader("Accept", "application/vnd.github+json");
+		request.setRawHeader("User-Agent", QByteArray("better-markers/") + PLUGIN_VERSION);
+		m_update_check_reply = m_update_network->get(request);
+		QObject::connect(m_update_check_reply, &QNetworkReply::finished, [this]() {
+			QNetworkReply *reply = m_update_check_reply;
+			m_update_check_reply = nullptr;
+			if (!reply)
+				return;
+
+			if (reply->error() != QNetworkReply::NoError) {
+				obs_log(LOG_WARNING, "Better Markers update check failed: %s", reply->errorString().toUtf8().constData());
+				reply->deleteLater();
+				return;
+			}
+
+			const QJsonDocument doc = QJsonDocument::fromJson(reply->readAll());
+			reply->deleteLater();
+			if (!doc.isObject())
+				return;
+
+			const QJsonObject release = doc.object();
+			const QString latest_tag = release.value("tag_name").toString().trimmed();
+			if (latest_tag.isEmpty())
+				return;
+
+			if (release_tags_match(latest_tag, QString::fromUtf8(PLUGIN_VERSION)))
+				return;
+			if (m_store.skipped_update_tag() == latest_tag)
+				return;
+
+			QString release_url = release.value("html_url").toString().trimmed();
+			if (release_url.isEmpty())
+				release_url = QString("https://github.com/przxmus/better-markers/releases/tag/%1").arg(latest_tag);
+
+			show_update_available_dialog(latest_tag, release_url);
+		});
+	}
+
+	void show_update_available_dialog(const QString &latest_tag, const QString &release_url)
+	{
+		QWidget *parent = static_cast<QWidget *>(obs_frontend_get_main_window());
+		QDialog dialog(parent);
+		dialog.setWindowTitle(bm::bm_text("BetterMarkers.Update.Title"));
+		dialog.setModal(true);
+
+		auto *layout = new QVBoxLayout(&dialog);
+		auto *message = new QLabel(
+			bm::bm_text("BetterMarkers.Update.Message")
+				.arg(QString::fromUtf8(PLUGIN_VERSION))
+				.arg(latest_tag),
+			&dialog);
+		message->setWordWrap(true);
+		layout->addWidget(message);
+
+		auto *buttons_layout = new QHBoxLayout();
+		auto *skip_button = new QPushButton(bm::bm_text("BetterMarkers.Update.SkipVersion"), &dialog);
+		auto *ignore_button = new QPushButton(bm::bm_text("BetterMarkers.Update.Ignore"), &dialog);
+		auto *install_button = new QPushButton(bm::bm_text("BetterMarkers.Update.Install"), &dialog);
+		install_button->setDefault(true);
+		buttons_layout->addWidget(skip_button);
+		buttons_layout->addStretch(1);
+		buttons_layout->addWidget(ignore_button);
+		buttons_layout->addWidget(install_button);
+		layout->addLayout(buttons_layout);
+
+		QObject::connect(skip_button, &QPushButton::clicked, [&dialog]() { dialog.done(UPDATE_ACTION_SKIP); });
+		QObject::connect(ignore_button, &QPushButton::clicked, [&dialog]() { dialog.done(UPDATE_ACTION_IGNORE); });
+		QObject::connect(install_button, &QPushButton::clicked, [&dialog]() { dialog.done(UPDATE_ACTION_INSTALL); });
+
+		const int action = dialog.exec();
+		if (action == UPDATE_ACTION_SKIP) {
+			m_store.set_skipped_update_tag(latest_tag);
+			m_store.save_global();
+			return;
+		}
+
+		if (action == UPDATE_ACTION_INSTALL)
+			QDesktopServices::openUrl(QUrl(release_url));
+	}
+
 	QString m_store_base_dir;
 	bm::ScopeStore m_store;
 	bm::RecordingSessionTracker m_tracker;
 	std::unique_ptr<bm::MarkerController> m_controller;
 	std::unique_ptr<bm::HotkeyRegistry> m_hotkeys;
+	std::unique_ptr<QNetworkAccessManager> m_update_network;
+	QNetworkReply *m_update_check_reply = nullptr;
 
 	QAction *m_settings_action = nullptr;
 	QWidget *m_dock_widget = nullptr;

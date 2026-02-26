@@ -35,6 +35,7 @@ if(ENABLE_QT)
       PRIVATE
         "${QT_FRAMEWORK_DIR}/QtCore.framework/Headers"
         "${QT_FRAMEWORK_DIR}/QtGui.framework/Headers"
+        "${QT_FRAMEWORK_DIR}/QtNetwork.framework/Headers"
         "${QT_FRAMEWORK_DIR}/QtWidgets.framework/Headers"
         "${CMAKE_CURRENT_SOURCE_DIR}/.deps/obs-deps-qt6-2025-07-11-universal/mkspecs/macx-clang"
         "${CMAKE_CURRENT_SOURCE_DIR}/.deps/obs-deps-qt6-2025-07-11-universal/include"
@@ -47,10 +48,13 @@ if(ENABLE_QT)
       ${CMAKE_PROJECT_NAME}
       PRIVATE "-F${QT_FRAMEWORK_DIR}" "-iframework${QT_FRAMEWORK_DIR}"
     )
-    target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE "-framework QtCore" "-framework QtGui" "-framework QtWidgets")
+    target_link_libraries(
+      ${CMAKE_PROJECT_NAME}
+      PRIVATE "-framework QtCore" "-framework QtGui" "-framework QtNetwork" "-framework QtWidgets"
+    )
   else()
-    find_package(Qt6 COMPONENTS Widgets Core)
-    target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Qt6::Core Qt6::Widgets)
+    find_package(Qt6 COMPONENTS Widgets Core Network)
+    target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Qt6::Core Qt6::Network Qt6::Widgets)
   endif()
   target_compile_options(
     ${CMAKE_PROJECT_NAME}
