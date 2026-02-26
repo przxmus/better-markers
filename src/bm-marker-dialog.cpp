@@ -17,6 +17,8 @@
 #include <QTimer>
 #include <QVBoxLayout>
 
+#include <utility>
+
 namespace bm {
 namespace {
 
@@ -134,6 +136,11 @@ void MarkerDialog::prepare_for_immediate_input(bool aggressive_focus)
 	m_aggressive_focus = aggressive_focus;
 }
 
+void MarkerDialog::set_platform_activation_callback(std::function<bool()> callback)
+{
+	m_platform_activation_callback = std::move(callback);
+}
+
 const MarkerTemplate *MarkerDialog::selected_template() const
 {
 	QString template_id;
@@ -213,13 +220,12 @@ void MarkerDialog::showEvent(QShowEvent *event)
 		if (!m_aggressive_focus)
 			return;
 
-		if (QWidget *top_level = window()) {
-			top_level->raise();
-			top_level->activateWindow();
-		}
-		raise();
-		activateWindow();
+		request_aggressive_activation();
 	});
+
+	if (m_aggressive_focus) {
+		QTimer::singleShot(50, this, [this]() { request_aggressive_activation(); });
+	}
 }
 
 void MarkerDialog::focus_primary_input()
@@ -272,6 +278,19 @@ QList<QWidget *> MarkerDialog::active_focus_order() const
 	if (m_description_edit && m_description_edit->isEnabled() && m_description_edit->isVisible())
 		order.push_back(m_description_edit);
 	return order;
+}
+
+void MarkerDialog::request_aggressive_activation()
+{
+	if (m_platform_activation_callback)
+		m_platform_activation_callback();
+
+	if (QWidget *top_level = window()) {
+		top_level->raise();
+		top_level->activateWindow();
+	}
+	raise();
+	activateWindow();
 }
 
 } // namespace bm

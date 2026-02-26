@@ -2,6 +2,7 @@
 
 #include "bm-localization.hpp"
 #include "bm-marker-dialog.hpp"
+#include "bm-window-focus.hpp"
 
 #include <util/base.h>
 #include <util/platform.h>
@@ -15,6 +16,40 @@
 #include <QWidget>
 
 namespace bm {
+namespace {
+
+class HotkeyDialogFocusSession {
+public:
+	explicit HotkeyDialogFocusSession(const ScopeStore *store)
+	{
+		m_enabled = store && store->auto_focus_marker_dialog();
+		if (m_enabled)
+			m_snapshot = capture_window_focus_snapshot();
+	}
+
+	void prepare_dialog(MarkerDialog *dialog) const
+	{
+		if (!m_enabled || !dialog)
+			return;
+
+		dialog->prepare_for_immediate_input(true);
+		dialog->set_platform_activation_callback([dialog]() { return activate_marker_dialog_window(dialog); });
+	}
+
+	void restore() const
+	{
+		if (!m_enabled || !m_snapshot.is_valid())
+			return;
+
+		restore_window_focus(m_snapshot);
+	}
+
+private:
+	bool m_enabled = false;
+	WindowFocusSnapshot m_snapshot;
+};
+
+} // namespace
 
 MarkerController::MarkerController(ScopeStore *store, RecordingSessionTracker *tracker, QWidget *parent_window,
 				   const QString &base_store_dir)
@@ -85,15 +120,19 @@ void MarkerController::add_marker_from_template_hotkey(const MarkerTemplate &tem
 	int color_id = templ.color_id;
 
 	if (template_has_editables(templ)) {
+		HotkeyDialogFocusSession focus_session(m_store);
 		QVector<MarkerTemplate> templates{templ};
 		MarkerDialog dialog(templates, MarkerDialog::Mode::FixedTemplate, templ.id, m_parent_window);
-		prepare_marker_dialog(&dialog);
-		if (dialog.exec() != QDialog::Accepted)
+		focus_session.prepare_dialog(&dialog);
+		if (dialog.exec() != QDialog::Accepted) {
+			focus_session.restore();
 			return;
+		}
 
 		title = dialog.marker_title();
 		description = dialog.marker_description();
 		color_id = dialog.marker_color_id();
+		focus_session.restore();
 	}
 
 	const MarkerRecord marker = marker_from_inputs(ctx, title, description, color_id);
@@ -116,14 +155,18 @@ void MarkerController::quick_custom_marker()
 	if (!capture_pending_context(&ctx, false))
 		return;
 
+	HotkeyDialogFocusSession focus_session(m_store);
 	QVector<MarkerTemplate> none;
 	MarkerDialog dialog(none, MarkerDialog::Mode::NoTemplate, QString(), m_parent_window);
-	prepare_marker_dialog(&dialog);
-	if (dialog.exec() != QDialog::Accepted)
+	focus_session.prepare_dialog(&dialog);
+	if (dialog.exec() != QDialog::Accepted) {
+		focus_session.restore();
 		return;
+	}
 
 	const MarkerRecord marker =
 		marker_from_inputs(ctx, dialog.marker_title(), dialog.marker_description(), dialog.marker_color_id());
+	focus_session.restore();
 	append_marker(ctx.media_path, marker);
 }
 

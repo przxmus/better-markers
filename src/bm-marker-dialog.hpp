@@ -5,6 +5,8 @@
 #include <QDialog>
 #include <QList>
 
+#include <functional>
+
 class QComboBox;
 class QEvent;
 class QLineEdit;
@@ -32,6 +34,7 @@ public:
 	QString marker_description() const;
 	int marker_color_id() const;
 	void prepare_for_immediate_input(bool aggressive_focus);
+	void set_platform_activation_callback(std::function<bool()> callback);
 
 protected:
 	bool eventFilter(QObject *watched, QEvent *event) override;
@@ -43,12 +46,14 @@ private:
 	void focus_primary_input();
 	bool focus_next_or_accept(QWidget *current_widget);
 	QList<QWidget *> active_focus_order() const;
+	void request_aggressive_activation();
 
 	QVector<MarkerTemplate> m_templates;
 	Mode m_mode;
 	QString m_fixed_template_id;
 	bool m_request_immediate_focus = false;
 	bool m_aggressive_focus = false;
+	std::function<bool()> m_platform_activation_callback;
 
 	QComboBox *m_template_combo = nullptr;
 	QLineEdit *m_title_edit = nullptr;

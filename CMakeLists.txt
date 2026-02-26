@@ -46,7 +46,7 @@ if(ENABLE_QT)
     target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE "-F${QT_FRAMEWORK_DIR}" "-iframework${QT_FRAMEWORK_DIR}")
     target_link_libraries(
       ${CMAKE_PROJECT_NAME}
-      PRIVATE "-framework QtCore" "-framework QtGui" "-framework QtNetwork" "-framework QtWidgets"
+      PRIVATE "-framework QtCore" "-framework QtGui" "-framework QtNetwork" "-framework QtWidgets" "-framework AppKit"
     )
   else()
     find_package(Qt6 COMPONENTS Widgets Core Network)
