@@ -42,6 +42,7 @@ Included locales:
 - Chinese Simplified (`zh-CN`)
 - Chinese Traditional (`zh-TW`)
 - Turkish (`tr-TR`)
+- Polish (`pl-PL`)
 
 ## Important Notes
 

@@ -16,3 +16,4 @@
   - `zh-CN.ini`
   - `zh-TW.ini`
   - `tr-TR.ini`
+  - `pl-PL.ini`
