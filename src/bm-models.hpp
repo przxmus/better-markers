@@ -16,6 +16,7 @@ enum class TemplateScope {
 struct MarkerTemplate {
 	QString id;
 	TemplateScope scope = TemplateScope::SceneCollection;
+	QString scope_target;
 	QString name;
 	QString title;
 	QString description;

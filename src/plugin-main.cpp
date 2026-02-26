@@ -31,6 +31,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <memory>
 
 #include "bm-hotkey-registry.hpp"
+#include "bm-localization.hpp"
 #include "bm-marker-controller.hpp"
 #include "bm-recording-session-tracker.hpp"
 #include "bm-settings-dialog.hpp"
@@ -42,9 +43,6 @@ namespace {
 
 constexpr const char *SCENE_STORE_KEY = "better-markers.scene-store";
 constexpr const char *DOCK_ID = "better-markers.dock";
-constexpr const char *TOOLS_MENU_TITLE = "Better Markers Settings";
-constexpr const char *DOCK_TITLE = "Better Markers";
-constexpr const char *ADD_MARKER_BUTTON_TITLE = "Add Marker";
 
 class BetterMarkersPlugin {
 public:
@@ -58,6 +56,7 @@ public:
 
 		m_store.set_base_dir(m_store_base_dir);
 		reload_profile_store();
+		reload_scene_collection_store();
 		m_store.load_global();
 
 		QMainWindow *main_window = static_cast<QMainWindow *>(obs_frontend_get_main_window());
@@ -90,7 +89,8 @@ public:
 		obs_frontend_add_save_callback(&BetterMarkersPlugin::on_frontend_save, this);
 		obs_frontend_add_event_callback(&BetterMarkersPlugin::on_frontend_event, this);
 
-		m_settings_action = static_cast<QAction *>(obs_frontend_add_tools_menu_qaction(TOOLS_MENU_TITLE));
+		m_settings_action = static_cast<QAction *>(
+			obs_frontend_add_tools_menu_qaction(bm::bm_text("BetterMarkers.SettingsMenu").toUtf8().constData()));
 		if (m_settings_action) {
 			QObject::connect(m_settings_action, &QAction::triggered, [this]() { show_settings_dialog(); });
 		}
@@ -183,6 +183,7 @@ private:
 		}
 
 		if (event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGED) {
+			self->reload_scene_collection_store();
 			self->refresh_runtime_bindings();
 			if (self->m_settings_dialog)
 				self->m_settings_dialog->refresh();
@@ -218,7 +219,7 @@ private:
 	void persist_non_scene()
 	{
 		m_store.save_global();
-		m_store.save_profile();
+		m_store.save_profile(); // Kept for backwards compatibility with legacy scope stores.
 	}
 
 	void refresh_runtime_bindings()
@@ -236,7 +237,7 @@ private:
 		auto *layout = new QVBoxLayout(m_dock_widget);
 		layout->setContentsMargins(8, 8, 8, 8);
 
-		auto *add_marker_button = new QPushButton(ADD_MARKER_BUTTON_TITLE, m_dock_widget);
+		auto *add_marker_button = new QPushButton(bm::bm_text("BetterMarkers.AddMarkerButton"), m_dock_widget);
 		layout->addWidget(add_marker_button);
 		layout->addStretch(1);
 
@@ -245,7 +246,16 @@ private:
 				m_controller->add_marker_from_main_button();
 		});
 
-		obs_frontend_add_dock_by_id(DOCK_ID, DOCK_TITLE, m_dock_widget);
+		obs_frontend_add_dock_by_id(DOCK_ID, bm::bm_text("BetterMarkers.DockTitle").toUtf8().constData(),
+					    m_dock_widget);
+	}
+
+	void reload_scene_collection_store()
+	{
+		char *scene_collection = obs_frontend_get_current_scene_collection();
+		m_store.set_scene_collection_name(QString::fromUtf8(scene_collection ? scene_collection : ""));
+		if (scene_collection)
+			bfree(scene_collection);
 	}
 
 	QString m_store_base_dir;

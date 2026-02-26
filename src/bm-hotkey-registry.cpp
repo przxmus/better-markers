@@ -1,5 +1,6 @@
 #include "bm-hotkey-registry.hpp"
 
+#include <obs-module.h>
 #include <obs-data.h>
 
 #include <QJsonArray>
@@ -145,10 +146,11 @@ void HotkeyRegistry::register_quick_hotkeys()
 	if (!m_store)
 		return;
 
-	m_quick_marker = obs_hotkey_register_frontend("BetterMarkers.QuickMarker", "Better Markers: Quick Marker",
+	m_quick_marker = obs_hotkey_register_frontend("BetterMarkers.QuickMarker",
+						      obs_module_text("BetterMarkers.Hotkey.QuickMarker"),
 						      &HotkeyRegistry::quick_marker_callback, this);
 	m_quick_custom_marker = obs_hotkey_register_frontend("BetterMarkers.QuickCustomMarker",
-						     "Better Markers: Quick Custom Marker",
+						     obs_module_text("BetterMarkers.Hotkey.QuickCustomMarker"),
 						     &HotkeyRegistry::quick_marker_callback, this);
 
 	const QJsonObject quick = m_store->for_scope(TemplateScope::Global).quick_hotkeys;
@@ -230,7 +232,7 @@ QString HotkeyRegistry::make_hotkey_name(const MarkerTemplate &templ)
 
 QString HotkeyRegistry::make_hotkey_desc(const MarkerTemplate &templ)
 {
-	return QString("Better Markers: Add Marker (%1)").arg(templ.name);
+	return QString::fromUtf8(obs_module_text("BetterMarkers.Hotkey.AddTemplateMarker")).arg(templ.name);
 }
 
 QString HotkeyRegistry::sanitize(const QString &value)

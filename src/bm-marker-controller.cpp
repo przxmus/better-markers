@@ -1,5 +1,6 @@
 #include "bm-marker-controller.hpp"
 
+#include "bm-localization.hpp"
 #include "bm-marker-dialog.hpp"
 
 #include <util/base.h>
@@ -140,7 +141,7 @@ bool MarkerController::capture_pending_context(PendingMarkerContext *out_ctx, bo
 
 	if (!m_tracker->can_add_marker()) {
 		if (show_warning_ui)
-			show_warning_async("Markers can only be added while recording and when recording is not paused.");
+			show_warning_async(bm_text("BetterMarkers.Warning.RecordingRequired"));
 		blog(LOG_WARNING, "[better-markers] marker ignored: recording is not active or is paused");
 		return false;
 	}
@@ -150,7 +151,7 @@ bool MarkerController::capture_pending_context(PendingMarkerContext *out_ctx, bo
 	out_ctx->trigger_time_ns = os_gettime_ns();
 	if (out_ctx->media_path.isEmpty()) {
 		if (show_warning_ui)
-			show_warning_async("Could not resolve the current recording file path.");
+			show_warning_async(bm_text("BetterMarkers.Warning.CouldNotResolvePath"));
 		blog(LOG_WARNING, "[better-markers] marker ignored: current recording file path is empty");
 		return false;
 	}
@@ -187,7 +188,7 @@ void MarkerController::append_marker(const QString &media_path, const MarkerReco
 	if (!m_xmp_writer.write_sidecar(media_path, markers, fps_num, fps_den, &error)) {
 		blog(LOG_ERROR, "[better-markers] failed to write sidecar for '%s': %s", media_path.toUtf8().constData(),
 			error.toUtf8().constData());
-		show_warning_async(QString("Failed to write marker sidecar: %1").arg(error));
+		show_warning_async(bm_text("BetterMarkers.Warning.FailedToWriteSidecar").arg(error));
 		return;
 	}
 
@@ -226,8 +227,8 @@ void MarkerController::finalize_closed_file(const QString &closed_file)
 		blog(LOG_WARNING,
 			"[better-markers] failed to embed XMP into '%s': %s (sidecar kept, recovery queued)",
 			closed_file.toUtf8().constData(), result.error.toUtf8().constData());
-		show_warning_async(QString("Failed to embed XMP into recording file. Sidecar was kept and job queued for retry.\n\n%1")
-					 .arg(result.error));
+		show_warning_async(
+			bm_text("BetterMarkers.Warning.FailedToEmbedXmp").arg(result.error));
 	}
 
 	std::lock_guard<std::mutex> lock(m_mutex);
@@ -241,7 +242,7 @@ void MarkerController::show_warning_async(const QString &message) const
 
 	QMetaObject::invokeMethod(m_parent_window,
 				  [parent = m_parent_window, message]() {
-					  QMessageBox::warning(parent, "Better Markers", message);
+					  QMessageBox::warning(parent, bm_text("BetterMarkers.DockTitle"), message);
 				  },
 				  Qt::QueuedConnection);
 }

@@ -29,6 +29,7 @@ QJsonObject marker_template_to_json(const MarkerTemplate &templ)
 	QJsonObject json_obj;
 	json_obj.insert("id", templ.id);
 	json_obj.insert("scope", scope_to_key(templ.scope));
+	json_obj.insert("scopeTarget", templ.scope_target);
 	json_obj.insert("name", templ.name);
 	json_obj.insert("title", templ.title);
 	json_obj.insert("description", templ.description);
@@ -44,6 +45,7 @@ MarkerTemplate marker_template_from_json(const QJsonObject &json_obj)
 	MarkerTemplate templ;
 	templ.id = json_obj.value("id").toString();
 	templ.scope = scope_from_key(json_obj.value("scope").toString());
+	templ.scope_target = json_obj.value("scopeTarget").toString();
 	templ.name = json_obj.value("name").toString();
 	templ.title = json_obj.value("title").toString();
 	templ.description = json_obj.value("description").toString();

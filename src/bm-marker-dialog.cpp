@@ -1,6 +1,7 @@
 #include "bm-marker-dialog.hpp"
 
 #include "bm-colors.hpp"
+#include "bm-localization.hpp"
 
 #include <QComboBox>
 #include <QDialogButtonBox>
@@ -18,12 +19,12 @@ QString scope_label(TemplateScope scope)
 {
 	switch (scope) {
 	case TemplateScope::Global:
-		return "Global";
+		return bm::bm_text("BetterMarkers.Scope.Global");
 	case TemplateScope::Profile:
-		return "Profile";
+		return bm::bm_text("BetterMarkers.Scope.Profile");
 	case TemplateScope::SceneCollection:
 	default:
-		return "Scene Collection";
+		return bm::bm_text("BetterMarkers.Scope.SceneCollection");
 	}
 }
 
@@ -34,7 +35,7 @@ MarkerDialog::MarkerDialog(const QVector<MarkerTemplate> &templates, Mode mode, 
 	: QDialog(parent), m_templates(templates), m_mode(mode), m_fixed_template_id(fixed_template_id)
 {
 	setModal(true);
-	setWindowTitle("Add Marker");
+	setWindowTitle(bm_text("BetterMarkers.AddMarkerButton"));
 	setMinimumWidth(560);
 
 	auto *layout = new QVBoxLayout(this);
@@ -42,12 +43,15 @@ MarkerDialog::MarkerDialog(const QVector<MarkerTemplate> &templates, Mode mode, 
 
 	if (m_mode == Mode::ChooseTemplate) {
 		m_template_combo = new QComboBox(this);
-		m_template_combo->addItem("No template", QString());
+		m_template_combo->addItem(bm_text("BetterMarkers.MarkerDialog.NoTemplate"), QString());
 		for (const MarkerTemplate &templ : m_templates) {
-			const QString label = QString("[%1] %2").arg(scope_label(templ.scope), templ.name);
+			QString scope = scope_label(templ.scope);
+			if (!templ.scope_target.trimmed().isEmpty())
+				scope += QString(": %1").arg(templ.scope_target);
+			const QString label = QString("[%1] %2").arg(scope, templ.name);
 			m_template_combo->addItem(label, templ.id);
 		}
-		form->addRow("Template", m_template_combo);
+		form->addRow(bm_text("BetterMarkers.MarkerDialog.Template"), m_template_combo);
 	}
 
 	auto *title_row = new QWidget(this);
@@ -58,13 +62,13 @@ MarkerDialog::MarkerDialog(const QVector<MarkerTemplate> &templates, Mode mode, 
 	for (const PremiereColorOption &color : premiere_colors())
 		m_color_combo->addItem(color.label, color.id);
 	title_layout->addWidget(m_title_edit, 3);
-	title_layout->addWidget(new QLabel("Color", this));
+	title_layout->addWidget(new QLabel(bm_text("BetterMarkers.Common.Color"), this));
 	title_layout->addWidget(m_color_combo, 2);
-	form->addRow("Marker Title", title_row);
+	form->addRow(bm_text("BetterMarkers.MarkerDialog.MarkerTitle"), title_row);
 
 	m_description_edit = new QPlainTextEdit(this);
 	m_description_edit->setFixedHeight(110);
-	form->addRow("Description", m_description_edit);
+	form->addRow(bm_text("BetterMarkers.MarkerDialog.Description"), m_description_edit);
 	layout->addLayout(form);
 
 	auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);

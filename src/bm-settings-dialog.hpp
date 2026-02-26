@@ -3,6 +3,7 @@
 #include "bm-scope-store.hpp"
 
 #include <QDialog>
+#include <QStringList>
 #include <functional>
 
 class QListWidget;
@@ -24,9 +25,10 @@ private:
 	void edit_template();
 	void delete_template();
 	void on_selection_changed();
+	QStringList available_profiles() const;
+	QStringList available_scene_collections() const;
 
 	struct SelectedTemplate {
-		TemplateScope scope = TemplateScope::SceneCollection;
 		int index = -1;
 	};
 

@@ -57,6 +57,11 @@ void ScopeStore::set_profile_name(const QString &profile_name)
 	m_profile_name = profile_name;
 }
 
+void ScopeStore::set_scene_collection_name(const QString &scene_collection_name)
+{
+	m_scene_collection_name = scene_collection_name;
+}
+
 bool ScopeStore::load_global()
 {
 	QJsonObject json_obj;
@@ -79,6 +84,7 @@ bool ScopeStore::load_profile()
 		return false;
 
 	m_profile = scoped_store_from_json(json_obj);
+	merge_legacy_templates(m_profile, TemplateScope::Profile, m_profile_name);
 	return true;
 }
 
@@ -90,6 +96,7 @@ bool ScopeStore::save_profile() const
 void ScopeStore::load_scene(const QJsonObject &scene_store_json)
 {
 	m_scene = scoped_store_from_json(scene_store_json);
+	merge_legacy_templates(m_scene, TemplateScope::SceneCollection, m_scene_collection_name);
 }
 
 QJsonObject ScopeStore::save_scene() const
@@ -126,14 +133,23 @@ const ScopedStoreData &ScopeStore::for_scope(TemplateScope scope) const
 QVector<MarkerTemplate> ScopeStore::merged_templates() const
 {
 	QVector<MarkerTemplate> templates;
-	templates.reserve(m_global.templates.size() + m_profile.templates.size() + m_scene.templates.size());
+	templates.reserve(m_global.templates.size());
 
-	for (const MarkerTemplate &templ : m_global.templates)
-		templates.push_back(templ);
-	for (const MarkerTemplate &templ : m_profile.templates)
-		templates.push_back(templ);
-	for (const MarkerTemplate &templ : m_scene.templates)
-		templates.push_back(templ);
+	for (const MarkerTemplate &templ : m_global.templates) {
+		if (templ.scope == TemplateScope::Global) {
+			templates.push_back(templ);
+			continue;
+		}
+
+		if (templ.scope == TemplateScope::Profile) {
+			if (templ.scope_target.isEmpty() || templ.scope_target == m_profile_name)
+				templates.push_back(templ);
+			continue;
+		}
+
+		if (templ.scope_target.isEmpty() || templ.scope_target == m_scene_collection_name)
+			templates.push_back(templ);
+	}
 
 	return templates;
 }
@@ -153,6 +169,37 @@ QString ScopeStore::profile_store_path() const
 	safe_profile.replace('\\', '_');
 	safe_profile.replace(':', '_');
 	return m_base_dir + "/profiles/" + safe_profile + "/profile-store.json";
+}
+
+QString ScopeStore::current_profile_name() const
+{
+	return m_profile_name;
+}
+
+QString ScopeStore::current_scene_collection_name() const
+{
+	return m_scene_collection_name;
+}
+
+void ScopeStore::merge_legacy_templates(const ScopedStoreData &legacy_store, TemplateScope scope, const QString &target_name)
+{
+	for (MarkerTemplate templ : legacy_store.templates) {
+		if (templ.id.isEmpty() || has_template_id(templ.id))
+			continue;
+		templ.scope = scope;
+		if (templ.scope != TemplateScope::Global && templ.scope_target.trimmed().isEmpty())
+			templ.scope_target = target_name;
+		m_global.templates.push_back(templ);
+	}
+}
+
+bool ScopeStore::has_template_id(const QString &id) const
+{
+	for (const MarkerTemplate &templ : m_global.templates) {
+		if (templ.id == id)
+			return true;
+	}
+	return false;
 }
 
 } // namespace bm

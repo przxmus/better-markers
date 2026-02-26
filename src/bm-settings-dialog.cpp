@@ -1,7 +1,11 @@
 #include "bm-settings-dialog.hpp"
 
 #include "bm-colors.hpp"
+#include "bm-localization.hpp"
 #include "bm-template-editor-dialog.hpp"
+
+#include <obs-frontend-api.h>
+#include <util/base.h>
 
 #include <QUuid>
 #include <QHBoxLayout>
@@ -18,12 +22,12 @@ QString scope_label(TemplateScope scope)
 {
 	switch (scope) {
 	case TemplateScope::Global:
-		return "Global";
+		return bm::bm_text("BetterMarkers.Scope.Global");
 	case TemplateScope::Profile:
-		return "Profile";
+		return bm::bm_text("BetterMarkers.Scope.Profile");
 	case TemplateScope::SceneCollection:
 	default:
-		return "Scene Collection";
+		return bm::bm_text("BetterMarkers.Scope.SceneCollection");
 	}
 }
 
@@ -31,20 +35,20 @@ QString scope_label(TemplateScope scope)
 
 SettingsDialog::SettingsDialog(ScopeStore *store, QWidget *parent) : QDialog(parent), m_store(store)
 {
-	setWindowTitle("Better Markers Settings");
+	setWindowTitle(bm_text("BetterMarkers.Settings.Title"));
 	setMinimumSize(760, 520);
 
 	auto *main_layout = new QVBoxLayout(this);
-	main_layout->addWidget(new QLabel("Marker Templates", this));
+	main_layout->addWidget(new QLabel(bm_text("BetterMarkers.Settings.MarkerTemplates"), this));
 
 	m_template_list = new QListWidget(this);
 	main_layout->addWidget(m_template_list, 1);
 
 	auto *button_row = new QHBoxLayout();
-	auto *add_btn = new QPushButton("Add Template", this);
-	m_edit_button = new QPushButton("Edit", this);
-	m_delete_button = new QPushButton("Delete", this);
-	auto *close_btn = new QPushButton("Close", this);
+	auto *add_btn = new QPushButton(bm_text("BetterMarkers.Common.AddTemplate"), this);
+	m_edit_button = new QPushButton(bm_text("BetterMarkers.Common.Edit"), this);
+	m_delete_button = new QPushButton(bm_text("BetterMarkers.Common.Delete"), this);
+	auto *close_btn = new QPushButton(bm_text("BetterMarkers.Common.Close"), this);
 	button_row->addWidget(add_btn);
 	button_row->addWidget(m_edit_button);
 	button_row->addWidget(m_delete_button);
@@ -52,8 +56,7 @@ SettingsDialog::SettingsDialog(ScopeStore *store, QWidget *parent) : QDialog(par
 	button_row->addWidget(close_btn);
 	main_layout->addLayout(button_row);
 
-	main_layout->addWidget(new QLabel(
-		"You can assign hotkeys for each template and quick actions in OBS Settings -> Hotkeys.", this));
+	main_layout->addWidget(new QLabel(bm_text("BetterMarkers.Settings.HotkeysHint"), this));
 
 	connect(add_btn, &QPushButton::clicked, this, [this]() { add_template(); });
 	connect(m_edit_button, &QPushButton::clicked, this, [this]() { edit_template(); });
@@ -73,28 +76,28 @@ void SettingsDialog::set_persist_callback(PersistCallback callback)
 void SettingsDialog::refresh()
 {
 	m_template_list->clear();
+	const ScopedStoreData &global_store = m_store->for_scope(TemplateScope::Global);
+	for (int i = 0; i < global_store.templates.size(); ++i) {
+		const MarkerTemplate &templ = global_store.templates.at(i);
+		QString text = QString("[%1").arg(scope_label(templ.scope));
+		if (!templ.scope_target.trimmed().isEmpty())
+			text += QString(": %1").arg(templ.scope_target);
+		text += QString("] %1").arg(templ.name);
+		text += QString(" - %1 (%2)").arg(templ.title, color_label_for_id(templ.color_id));
 
-	for (TemplateScope scope : {TemplateScope::SceneCollection, TemplateScope::Profile, TemplateScope::Global}) {
-		const ScopedStoreData &data = m_store->for_scope(scope);
-		for (int i = 0; i < data.templates.size(); ++i) {
-			const MarkerTemplate &templ = data.templates.at(i);
-			QString text = QString("[%1] %2")
-					       .arg(scope_label(scope), templ.name);
-			text += QString(" - %1 (%2)").arg(templ.title, color_label_for_id(templ.color_id));
-
-			auto *item = new QListWidgetItem(text, m_template_list);
-			item->setData(Qt::UserRole, static_cast<int>(scope));
-			item->setData(Qt::UserRole + 1, i);
-		}
+		auto *item = new QListWidgetItem(text, m_template_list);
+		item->setData(Qt::UserRole, i);
 	}
 }
 
 void SettingsDialog::add_template()
 {
-	TemplateEditorDialog editor(this);
+	TemplateEditorDialog editor(available_profiles(), available_scene_collections(), m_store->current_profile_name(),
+				    m_store->current_scene_collection_name(), this);
 	MarkerTemplate templ;
 	templ.scope = TemplateScope::SceneCollection;
 	templ.color_id = 0;
+	templ.scope_target = m_store->current_scene_collection_name();
 	editor.set_template(templ);
 
 	if (editor.exec() != QDialog::Accepted)
@@ -102,7 +105,7 @@ void SettingsDialog::add_template()
 
 	MarkerTemplate created = editor.result_template();
 	created.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
-	m_store->for_scope(created.scope).templates.push_back(created);
+	m_store->for_scope(TemplateScope::Global).templates.push_back(created);
 
 	if (m_persist_callback)
 		m_persist_callback();
@@ -115,11 +118,12 @@ void SettingsDialog::edit_template()
 	if (selected.index < 0)
 		return;
 
-	ScopedStoreData &scope_store = m_store->for_scope(selected.scope);
+	ScopedStoreData &scope_store = m_store->for_scope(TemplateScope::Global);
 	if (selected.index >= scope_store.templates.size())
 		return;
 
-	TemplateEditorDialog editor(this);
+	TemplateEditorDialog editor(available_profiles(), available_scene_collections(), m_store->current_profile_name(),
+				    m_store->current_scene_collection_name(), this);
 	editor.set_template(scope_store.templates.at(selected.index));
 
 	if (editor.exec() != QDialog::Accepted)
@@ -128,13 +132,7 @@ void SettingsDialog::edit_template()
 	MarkerTemplate edited = editor.result_template();
 	if (edited.id.isEmpty())
 		edited.id = scope_store.templates.at(selected.index).id;
-
-	if (edited.scope == selected.scope) {
-		scope_store.templates[selected.index] = edited;
-	} else {
-		scope_store.templates.removeAt(selected.index);
-		m_store->for_scope(edited.scope).templates.push_back(edited);
-	}
+	scope_store.templates[selected.index] = edited;
 
 	if (m_persist_callback)
 		m_persist_callback();
@@ -147,13 +145,14 @@ void SettingsDialog::delete_template()
 	if (selected.index < 0)
 		return;
 
-	ScopedStoreData &scope_store = m_store->for_scope(selected.scope);
+	ScopedStoreData &scope_store = m_store->for_scope(TemplateScope::Global);
 	if (selected.index >= scope_store.templates.size())
 		return;
 
 	const MarkerTemplate templ = scope_store.templates.at(selected.index);
 	const auto answer = QMessageBox::question(
-		this, "Delete Template", QString("Delete template '%1'?" ).arg(templ.name));
+		this, bm_text("BetterMarkers.Settings.DeleteTitle"),
+		bm_text("BetterMarkers.Settings.DeleteMessage").arg(templ.name));
 	if (answer != QMessageBox::Yes)
 		return;
 
@@ -180,9 +179,36 @@ SettingsDialog::SelectedTemplate SettingsDialog::selected_template() const
 		return selected;
 
 	QListWidgetItem *item = items.first();
-	selected.scope = static_cast<TemplateScope>(item->data(Qt::UserRole).toInt());
-	selected.index = item->data(Qt::UserRole + 1).isValid() ? item->data(Qt::UserRole + 1).toInt() : -1;
+	selected.index = item->data(Qt::UserRole).isValid() ? item->data(Qt::UserRole).toInt() : -1;
 	return selected;
+}
+
+QStringList SettingsDialog::available_profiles() const
+{
+	QStringList profiles;
+	char **names = obs_frontend_get_profiles();
+	if (names) {
+		for (size_t i = 0; names[i] != nullptr; ++i)
+			profiles.push_back(QString::fromUtf8(names[i]));
+		bfree(names);
+	}
+	if (!profiles.contains(m_store->current_profile_name()))
+		profiles.push_back(m_store->current_profile_name());
+	return profiles;
+}
+
+QStringList SettingsDialog::available_scene_collections() const
+{
+	QStringList collections;
+	char **names = obs_frontend_get_scene_collections();
+	if (names) {
+		for (size_t i = 0; names[i] != nullptr; ++i)
+			collections.push_back(QString::fromUtf8(names[i]));
+		bfree(names);
+	}
+	if (!collections.contains(m_store->current_scene_collection_name()))
+		collections.push_back(m_store->current_scene_collection_name());
+	return collections;
 }
 
 } // namespace bm
