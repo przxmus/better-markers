@@ -67,10 +67,12 @@ SettingsDialog::SettingsDialog(ScopeStore *store, QWidget *parent) : QDialog(par
 	m_premiere_toggle = new QCheckBox(bm_text("BetterMarkers.Settings.ExportPremiereLabel"), export_targets_group);
 	m_premiere_toggle->setToolTip(bm_text("BetterMarkers.Settings.ExportPremiereHint"));
 	export_targets_layout->addWidget(m_premiere_toggle);
+	export_targets_layout->addSpacing(18);
 
 	m_resolve_toggle = new QCheckBox(bm_text("BetterMarkers.Settings.ExportResolveLabel"), export_targets_group);
 	m_resolve_toggle->setToolTip(bm_text("BetterMarkers.Settings.ExportResolveHint"));
 	export_targets_layout->addWidget(m_resolve_toggle);
+	export_targets_layout->addSpacing(18);
 
 	m_final_cut_toggle = new QCheckBox(bm_text("BetterMarkers.Settings.ExportFinalCutLabel"), export_targets_group);
 #ifdef __APPLE__
