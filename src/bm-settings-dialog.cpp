@@ -5,9 +5,11 @@
 #include "bm-template-editor-dialog.hpp"
 
 #include <obs-frontend-api.h>
+#include <plugin-support.h>
 #include <util/base.h>
 
 #include <QUuid>
+#include <QDesktopServices>
 #include <QHBoxLayout>
 #include <QLabel>
 #include <QListWidget>
@@ -16,6 +18,7 @@
 #include <QCheckBox>
 #include <QGroupBox>
 #include <QSignalBlocker>
+#include <QUrl>
 #include <QVBoxLayout>
 
 namespace bm {
@@ -42,6 +45,23 @@ SettingsDialog::SettingsDialog(ScopeStore *store, QWidget *parent) : QDialog(par
 	setMinimumSize(760, 520);
 
 	auto *main_layout = new QVBoxLayout(this);
+	auto *header_row = new QHBoxLayout();
+	header_row->addStretch(1);
+	auto *version_layout = new QVBoxLayout();
+	version_layout->setSpacing(2);
+	m_version_label = new QLabel(bm_text("BetterMarkers.Settings.Version").arg(QString::fromUtf8(PLUGIN_VERSION)), this);
+	m_version_label->setAlignment(Qt::AlignRight | Qt::AlignTop);
+	version_layout->addWidget(m_version_label);
+	m_update_available_label = new QLabel(this);
+	m_update_available_label->setAlignment(Qt::AlignRight | Qt::AlignTop);
+	m_update_available_label->setTextFormat(Qt::RichText);
+	m_update_available_label->setTextInteractionFlags(Qt::TextBrowserInteraction);
+	m_update_available_label->setOpenExternalLinks(false);
+	m_update_available_label->hide();
+	version_layout->addWidget(m_update_available_label);
+	header_row->addLayout(version_layout);
+	main_layout->addLayout(header_row);
+
 	main_layout->addWidget(new QLabel(bm_text("BetterMarkers.Settings.MarkerTemplates"), this));
 
 	m_template_list = new QListWidget(this);
@@ -96,6 +116,10 @@ SettingsDialog::SettingsDialog(ScopeStore *store, QWidget *parent) : QDialog(par
 	connect(m_premiere_toggle, &QCheckBox::checkStateChanged, this, [this]() { update_export_profile_from_ui(); });
 	connect(m_resolve_toggle, &QCheckBox::checkStateChanged, this, [this]() { update_export_profile_from_ui(); });
 	connect(m_final_cut_toggle, &QCheckBox::checkStateChanged, this, [this]() { update_export_profile_from_ui(); });
+	connect(m_update_available_label, &QLabel::linkActivated, this, [this](const QString &) {
+		if (!m_release_url.isEmpty())
+			QDesktopServices::openUrl(QUrl(m_release_url));
+	});
 
 	refresh();
 	on_selection_changed();
@@ -104,6 +128,23 @@ SettingsDialog::SettingsDialog(ScopeStore *store, QWidget *parent) : QDialog(par
 void SettingsDialog::set_persist_callback(PersistCallback callback)
 {
 	m_persist_callback = std::move(callback);
+}
+
+void SettingsDialog::set_update_availability(bool update_available, const QString &release_url)
+{
+	m_release_url = release_url.trimmed();
+	const bool show_link = update_available && !m_release_url.isEmpty();
+	if (m_update_available_label) {
+		if (show_link) {
+			const QString anchor = QString("<a href=\"%1\">%2</a>")
+					       .arg(m_release_url.toHtmlEscaped(), bm_text("BetterMarkers.Settings.UpdateAvailable"));
+			m_update_available_label->setText(anchor);
+			m_update_available_label->show();
+		} else {
+			m_update_available_label->clear();
+			m_update_available_label->hide();
+		}
+	}
 }
 
 void SettingsDialog::refresh()

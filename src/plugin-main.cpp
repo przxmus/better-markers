@@ -247,9 +247,11 @@ private:
 				persist_non_scene();
 				refresh_runtime_bindings();
 			});
+			m_settings_dialog->set_update_availability(m_has_update_available, m_latest_release_url);
 		}
 
 		m_settings_dialog->refresh();
+		m_settings_dialog->set_update_availability(m_has_update_available, m_latest_release_url);
 		m_settings_dialog->show();
 		m_settings_dialog->raise();
 		m_settings_dialog->activateWindow();
@@ -341,12 +343,17 @@ private:
 
 			if (release_tags_match(latest_tag, QString::fromUtf8(PLUGIN_VERSION)))
 				return;
-			if (release_tags_match(m_store.skipped_update_tag(), latest_tag))
-				return;
+			m_has_update_available = true;
 
 			QString release_url = release.value("html_url").toString().trimmed();
 			if (release_url.isEmpty())
 				release_url = QString("https://github.com/przxmus/better-markers/releases/tag/%1").arg(latest_tag);
+			m_latest_release_url = release_url;
+			if (m_settings_dialog)
+				m_settings_dialog->set_update_availability(true, m_latest_release_url);
+
+			if (release_tags_match(m_store.skipped_update_tag(), latest_tag))
+				return;
 
 			show_update_available_dialog(latest_tag, release_url);
 		});
@@ -401,6 +408,8 @@ private:
 	std::unique_ptr<bm::HotkeyRegistry> m_hotkeys;
 	std::unique_ptr<QNetworkAccessManager> m_update_network;
 	QNetworkReply *m_update_check_reply = nullptr;
+	bool m_has_update_available = false;
+	QString m_latest_release_url;
 
 	QAction *m_settings_action = nullptr;
 	QWidget *m_dock_widget = nullptr;
