@@ -26,35 +26,15 @@ bool activate_hwnd(HWND hwnd)
 	if (IsIconic(hwnd))
 		ShowWindow(hwnd, SW_RESTORE);
 	else
-		ShowWindow(hwnd, SW_SHOW);
+		ShowWindow(hwnd, SW_SHOWNORMAL);
 
+	SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
+	SetWindowPos(hwnd, HWND_NOTOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE);
 	BringWindowToTop(hwnd);
-	if (SetForegroundWindow(hwnd) != FALSE)
-		return true;
+	AllowSetForegroundWindow(ASFW_ANY);
 
-	const HWND foreground = GetForegroundWindow();
-	const DWORD self_tid = GetCurrentThreadId();
-	const DWORD target_tid = GetWindowThreadProcessId(hwnd, nullptr);
-	const DWORD foreground_tid = foreground ? GetWindowThreadProcessId(foreground, nullptr) : 0;
-
-	bool attached_target = false;
-	bool attached_foreground = false;
-	if (target_tid != 0 && target_tid != self_tid)
-		attached_target = (AttachThreadInput(self_tid, target_tid, TRUE) != FALSE);
-	if (foreground_tid != 0 && foreground_tid != self_tid && foreground_tid != target_tid)
-		attached_foreground = (AttachThreadInput(self_tid, foreground_tid, TRUE) != FALSE);
-
-	SetWindowPos(hwnd, HWND_TOP, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_SHOWWINDOW);
-	BringWindowToTop(hwnd);
-	SetActiveWindow(hwnd);
-	SetFocus(hwnd);
 	const bool foreground_set = (SetForegroundWindow(hwnd) != FALSE);
-
-	if (attached_foreground)
-		AttachThreadInput(self_tid, foreground_tid, FALSE);
-	if (attached_target)
-		AttachThreadInput(self_tid, target_tid, FALSE);
-
+	SetActiveWindow(hwnd);
 	return foreground_set || GetForegroundWindow() == hwnd;
 }
 
