@@ -29,20 +29,65 @@ Better Markers lets you drop editing markers while recording in OBS, so your foo
 
 The plugin uses the same language as your OBS UI automatically.
 
-Included locales:
+Supported locales:
 
-- English (`en-US`)
-- Spanish (`es-ES`)
-- Portuguese - Brazil (`pt-BR`)
-- German (`de-DE`)
-- French (`fr-FR`)
-- Russian (`ru-RU`)
-- Japanese (`ja-JP`)
-- Korean (`ko-KR`)
-- Chinese Simplified (`zh-CN`)
-- Chinese Traditional (`zh-TW`)
-- Turkish (`tr-TR`)
-- Polish (`pl-PL`)
+- `an-ES`
+- `ar-SA`
+- `az-AZ`
+- `be-BY`
+- `bg-BG`
+- `bn-BD`
+- `ca-ES`
+- `cs-CZ`
+- `da-DK`
+- `de-DE`
+- `el-GR`
+- `en-GB`
+- `en-US`
+- `es-ES`
+- `et-EE`
+- `eu-ES`
+- `fa-IR`
+- `fi-FI`
+- `fil-PH`
+- `fr-FR`
+- `gd-GB`
+- `gl-ES`
+- `he-IL`
+- `hi-IN`
+- `hr-HR`
+- `hu-HU`
+- `hy-AM`
+- `id-ID`
+- `it-IT`
+- `ja-JP`
+- `ka-GE`
+- `kab-KAB`
+- `kmr-TR`
+- `ko-KR`
+- `lo-LA`
+- `ms-MY`
+- `nb-NO`
+- `nl-NL`
+- `pl-PL`
+- `pt-BR`
+- `pt-PT`
+- `ro-RO`
+- `ru-RU`
+- `si-LK`
+- `sk-SK`
+- `sl-SI`
+- `sr-CS`
+- `sr-SP`
+- `sv-SE`
+- `th-TH`
+- `tl-PH`
+- `tr-TR`
+- `ug-CN`
+- `uk-UA`
+- `vi-VN`
+- `zh-CN`
+- `zh-TW`
 
 ## Important Notes
 

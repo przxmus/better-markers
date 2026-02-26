@@ -5,15 +5,60 @@
 - Keep `data/locale/en-US.ini` as the source key set.
 - If any locale key is added, removed, or renamed in `en-US.ini`, apply the same key change in all maintained locale files in the same change set.
 - Maintained locale files are:
+  - `an-ES.ini`
+  - `ar-SA.ini`
+  - `az-AZ.ini`
+  - `be-BY.ini`
+  - `bg-BG.ini`
+  - `bn-BD.ini`
+  - `ca-ES.ini`
+  - `cs-CZ.ini`
+  - `da-DK.ini`
+  - `de-DE.ini`
+  - `el-GR.ini`
+  - `en-GB.ini`
   - `en-US.ini`
   - `es-ES.ini`
-  - `pt-BR.ini`
-  - `de-DE.ini`
+  - `et-EE.ini`
+  - `eu-ES.ini`
+  - `fa-IR.ini`
+  - `fi-FI.ini`
+  - `fil-PH.ini`
   - `fr-FR.ini`
-  - `ru-RU.ini`
+  - `gd-GB.ini`
+  - `gl-ES.ini`
+  - `he-IL.ini`
+  - `hi-IN.ini`
+  - `hr-HR.ini`
+  - `hu-HU.ini`
+  - `hy-AM.ini`
+  - `id-ID.ini`
+  - `it-IT.ini`
   - `ja-JP.ini`
+  - `ka-GE.ini`
+  - `kab-KAB.ini`
+  - `kmr-TR.ini`
   - `ko-KR.ini`
+  - `lo-LA.ini`
+  - `ms-MY.ini`
+  - `nb-NO.ini`
+  - `nl-NL.ini`
+  - `pl-PL.ini`
+  - `pt-BR.ini`
+  - `pt-PT.ini`
+  - `ro-RO.ini`
+  - `ru-RU.ini`
+  - `si-LK.ini`
+  - `sk-SK.ini`
+  - `sl-SI.ini`
+  - `sr-CS.ini`
+  - `sr-SP.ini`
+  - `sv-SE.ini`
+  - `th-TH.ini`
+  - `tl-PH.ini`
+  - `tr-TR.ini`
+  - `ug-CN.ini`
+  - `uk-UA.ini`
+  - `vi-VN.ini`
   - `zh-CN.ini`
   - `zh-TW.ini`
-  - `tr-TR.ini`
-  - `pl-PL.ini`
