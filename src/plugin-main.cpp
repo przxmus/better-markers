@@ -225,8 +225,10 @@ private:
 	void refresh_runtime_bindings()
 	{
 		const QVector<bm::MarkerTemplate> active_templates = m_store.merged_templates();
-		if (m_controller)
+		if (m_controller) {
 			m_controller->set_active_templates(active_templates);
+			m_controller->set_export_profile(m_store.export_profile());
+		}
 		if (m_hotkeys)
 			m_hotkeys->refresh_templates(active_templates);
 	}

@@ -70,12 +70,16 @@ target_sources(
     src/bm-marker-dialog.hpp
     src/bm-fcpxml-writer.cpp
     src/bm-fcpxml-writer.hpp
+    src/bm-final-cut-fcpxml-sink.cpp
+    src/bm-final-cut-fcpxml-sink.hpp
     src/bm-mp4-mov-embed-engine.cpp
     src/bm-mp4-mov-embed-engine.hpp
     src/bm-recovery-queue.cpp
     src/bm-recovery-queue.hpp
     src/bm-recording-session-tracker.cpp
     src/bm-recording-session-tracker.hpp
+    src/bm-resolve-fcpxml-sink.cpp
+    src/bm-resolve-fcpxml-sink.hpp
     src/bm-xmp-sidecar-writer.cpp
     src/bm-xmp-sidecar-writer.hpp
     src/plugin-main.cpp
@@ -83,6 +87,7 @@ target_sources(
     src/bm-colors.hpp
     src/bm-models.cpp
     src/bm-models.hpp
+    src/bm-premiere-xmp-sink.cpp
     src/bm-premiere-xmp-sink.hpp
     src/bm-settings-dialog.cpp
     src/bm-settings-dialog.hpp

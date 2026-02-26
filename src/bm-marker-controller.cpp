@@ -18,7 +18,7 @@ MarkerController::MarkerController(ScopeStore *store, RecordingSessionTracker *t
 	: m_store(store), m_tracker(tracker), m_parent_window(parent_window),
 	  m_premiere_xmp_sink(base_store_dir + "/pending-embed.json")
 {
-	set_export_sinks({&m_premiere_xmp_sink});
+	set_export_profile(ExportProfile{});
 }
 
 void MarkerController::set_active_templates(const QVector<MarkerTemplate> &templates)
@@ -31,6 +31,20 @@ void MarkerController::set_export_sinks(const QVector<MarkerExportSink *> &sinks
 {
 	std::lock_guard<std::mutex> lock(m_mutex);
 	m_export_sinks = sinks;
+}
+
+void MarkerController::set_export_profile(const ExportProfile &profile)
+{
+	QVector<MarkerExportSink *> sinks;
+	if (profile.enable_premiere_xmp)
+		sinks.push_back(&m_premiere_xmp_sink);
+	if (profile.enable_resolve_fcpxml)
+		sinks.push_back(&m_resolve_fcpxml_sink);
+#ifdef __APPLE__
+	if (profile.enable_final_cut_fcpxml)
+		sinks.push_back(&m_final_cut_fcpxml_sink);
+#endif
+	set_export_sinks(sinks);
 }
 
 void MarkerController::add_marker_from_main_button()

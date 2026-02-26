@@ -2,8 +2,10 @@
 
 #include "bm-marker-data.hpp"
 #include "bm-marker-export-sink.hpp"
+#include "bm-final-cut-fcpxml-sink.hpp"
 #include "bm-premiere-xmp-sink.hpp"
 #include "bm-recording-session-tracker.hpp"
+#include "bm-resolve-fcpxml-sink.hpp"
 #include "bm-scope-store.hpp"
 
 #include <QHash>
@@ -21,6 +23,7 @@ public:
 			 const QString &base_store_dir);
 
 	void set_active_templates(const QVector<MarkerTemplate> &templates);
+	void set_export_profile(const ExportProfile &profile);
 	void set_export_sinks(const QVector<MarkerExportSink *> &sinks);
 
 	void add_marker_from_main_button();
@@ -52,6 +55,8 @@ private:
 	QWidget *m_parent_window = nullptr;
 
 	PremiereXmpSink m_premiere_xmp_sink;
+	ResolveFcpxmlSink m_resolve_fcpxml_sink;
+	FinalCutFcpxmlSink m_final_cut_fcpxml_sink;
 
 	mutable std::mutex m_mutex;
 	QVector<MarkerTemplate> m_active_templates;
