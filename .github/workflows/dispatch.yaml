@@ -13,6 +13,11 @@ on:
         description: Pull request number to build (optional)
         required: false
         type: string
+      fullMatrix:
+        description: Build all platforms (macOS, Ubuntu, Windows)
+        required: false
+        type: boolean
+        default: false
 permissions:
   contents: write
 jobs:
@@ -24,5 +29,8 @@ jobs:
       codesign: 'false'
       notarize: 'false'
       config: RelWithDebInfo
+      buildMacos: ${{ inputs.fullMatrix && 'true' || 'false' }}
+      buildUbuntu: 'true'
+      buildWindows: ${{ inputs.fullMatrix && 'true' || 'false' }}
       ref: ${{ inputs.prNumber && format('refs/pull/{0}/head', inputs.prNumber) || github.ref }}
     secrets: inherit

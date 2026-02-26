@@ -22,6 +22,21 @@ on:
         description: Git ref to checkout for builds (tag, branch, or SHA)
         required: false
         type: string
+      buildMacos:
+        description: Build macOS artifacts (`true` or `false`)
+        required: false
+        type: string
+        default: 'true'
+      buildUbuntu:
+        description: Build Ubuntu artifacts (`true` or `false`)
+        required: false
+        type: string
+        default: 'true'
+      buildWindows:
+        description: Build Windows artifacts (`true` or `false`)
+        required: false
+        type: string
+        default: 'true'
     outputs:
       pluginName:
         description: Project name detected by parsing build spec file
@@ -120,6 +135,7 @@ jobs:
 
   macos-build:
     name: Build for macOS 🍏
+    if: ${{ fromJSON(inputs.buildMacos) }}
     runs-on: macos-15
     needs: check-event
     defaults:
@@ -167,6 +183,14 @@ jobs:
           key: ${{ runner.os }}-ccache-${{ needs.check-event.outputs.config }}
           restore-keys: |
             ${{ runner.os }}-ccache-
+
+      - uses: actions/cache/restore@v4
+        id: deps-cache
+        with:
+          path: ${{ github.workspace }}/.deps
+          key: ${{ runner.os }}-deps-${{ hashFiles('buildspec.json', 'cmake/common/buildspec_common.cmake', 'cmake/macos/buildspec.cmake', 'cmake/windows/buildspec.cmake') }}
+          restore-keys: |
+            ${{ runner.os }}-deps-
 
       - name: Set Up Codesigning 🔑
         uses: ./.github/actions/setup-macos-codesigning
@@ -223,8 +247,15 @@ jobs:
           path: ${{ github.workspace }}/.ccache
           key: ${{ runner.os }}-ccache-${{ needs.check-event.outputs.config }}
 
+      - uses: actions/cache/save@v4
+        if: github.event_name != 'pull_request' && steps.deps-cache.outputs.cache-hit != 'true'
+        with:
+          path: ${{ github.workspace }}/.deps
+          key: ${{ runner.os }}-deps-${{ hashFiles('buildspec.json', 'cmake/common/buildspec_common.cmake', 'cmake/macos/buildspec.cmake', 'cmake/windows/buildspec.cmake') }}
+
   ubuntu-build:
     name: Build for Ubuntu 🐧
+    if: ${{ fromJSON(inputs.buildUbuntu) }}
     strategy:
       matrix:
         os: [ubuntu-24.04]
@@ -300,6 +331,7 @@ jobs:
 
   windows-build:
     name: Build for Windows 🪟
+    if: ${{ fromJSON(inputs.buildWindows) }}
     runs-on: windows-2022
     needs: check-event
     defaults:
@@ -327,6 +359,14 @@ jobs:
           "pluginName=${ProductName}" >> $env:GITHUB_OUTPUT
           "pluginVersion=${ProductVersion}" >> $env:GITHUB_OUTPUT
 
+      - uses: actions/cache/restore@v4
+        id: deps-cache
+        with:
+          path: ${{ github.workspace }}/.deps
+          key: ${{ runner.os }}-deps-${{ hashFiles('buildspec.json', 'cmake/common/buildspec_common.cmake', 'cmake/macos/buildspec.cmake', 'cmake/windows/buildspec.cmake') }}
+          restore-keys: |
+            ${{ runner.os }}-deps-
+
       - name: Build Plugin 🧱
         uses: ./.github/actions/build-plugin
         with:
@@ -345,3 +385,9 @@ jobs:
         with:
           name: ${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64-${{ needs.check-event.outputs.commitHash }}
           path: ${{ github.workspace }}/release/${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64*.*
+
+      - uses: actions/cache/save@v4
+        if: github.event_name != 'pull_request' && steps.deps-cache.outputs.cache-hit != 'true'
+        with:
+          path: ${{ github.workspace }}/.deps
+          key: ${{ runner.os }}-deps-${{ hashFiles('buildspec.json', 'cmake/common/buildspec_common.cmake', 'cmake/macos/buildspec.cmake', 'cmake/windows/buildspec.cmake') }}

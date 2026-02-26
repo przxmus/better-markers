@@ -69,16 +69,10 @@ runs:
 
         .github/scripts/package-macos ${package_args}
 
-    - name: Install Dependencies 🛍️
+    - name: Ensure zsh availability
       if: runner.os == 'Linux'
       shell: bash
-      run: |
-        : Install Dependencies 🛍️
-        echo ::group::Install Dependencies
-        eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-        echo "/home/linuxbrew/.linuxbrew/bin:/home/linuxbrew/.linuxbrew/sbin" >> $GITHUB_PATH
-        brew install --quiet zsh
-        echo ::endgroup::
+      run: command -v zsh >/dev/null 2>&1 || (echo "::error::zsh is required" && exit 2)
 
     - name: Run Ubuntu Packaging
       if: runner.os == 'Linux'
