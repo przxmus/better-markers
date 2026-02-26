@@ -33,6 +33,7 @@ runs:
       with:
         python-version: '3.x'
         cache: 'pip'
+        cache-dependency-path: .github/actions/run-gersemi/requirements.txt
 
     - name: Run gersemi 🎛️
       if: fromJSON(steps.checks.outputs.hasChangedFiles)
