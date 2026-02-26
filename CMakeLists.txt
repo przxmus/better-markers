@@ -69,6 +69,8 @@ target_sources(
     src/bm-marker-export-sink.hpp
     src/bm-marker-dialog.cpp
     src/bm-marker-dialog.hpp
+    src/bm-window-focus.cpp
+    src/bm-window-focus.hpp
     src/bm-fcpxml-writer.cpp
     src/bm-fcpxml-writer.hpp
     src/bm-final-cut-fcpxml-sink.cpp
@@ -97,6 +99,14 @@ target_sources(
     src/bm-template-editor-dialog.cpp
     src/bm-template-editor-dialog.hpp
 )
+
+if(WIN32)
+  target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/bm-window-focus-win.cpp)
+elseif(APPLE)
+  target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/bm-window-focus-macos.mm)
+elseif(UNIX)
+  target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/bm-window-focus-linux.cpp)
+endif()
 
 if(ENABLE_QT)
   target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE BETTER_MARKERS_QT=1)
