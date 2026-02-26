@@ -1,6 +1,27 @@
 name: Build Project
 on:
   workflow_call:
+    inputs:
+      package:
+        description: Override package setting (`true` or `false`)
+        required: false
+        type: string
+      codesign:
+        description: Override macOS codesign setting (`true` or `false`)
+        required: false
+        type: string
+      notarize:
+        description: Override macOS notarize setting (`true` or `false`)
+        required: false
+        type: string
+      config:
+        description: Override build config (`Debug`, `RelWithDebInfo`, `Release`, `MinSizeRel`)
+        required: false
+        type: string
+      ref:
+        description: Git ref to checkout for builds (tag, branch, or SHA)
+        required: false
+        type: string
     outputs:
       pluginName:
         description: Project name detected by parsing build spec file
@@ -22,6 +43,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.ref || github.sha }}
           fetch-depth: 0
       - name: Check Event Data ☑️
         id: setup
@@ -60,7 +82,32 @@ jobs:
             IFS=':' read -r key value <<< "${config}"
             echo "${key}=${value}" >> $GITHUB_OUTPUT
           done
-          echo "commitHash=${GITHUB_SHA:0:9}" >> $GITHUB_OUTPUT
+
+          case "${{ inputs.package }}" in
+            true|false) echo "package=${{ inputs.package }}" >> $GITHUB_OUTPUT ;;
+            '') ;;
+            *) echo "::error::Invalid workflow_call input 'package'. Use 'true' or 'false'"; exit 2 ;;
+          esac
+
+          case "${{ inputs.codesign }}" in
+            true|false) echo "codesign=${{ inputs.codesign }}" >> $GITHUB_OUTPUT ;;
+            '') ;;
+            *) echo "::error::Invalid workflow_call input 'codesign'. Use 'true' or 'false'"; exit 2 ;;
+          esac
+
+          case "${{ inputs.notarize }}" in
+            true|false) echo "notarize=${{ inputs.notarize }}" >> $GITHUB_OUTPUT ;;
+            '') ;;
+            *) echo "::error::Invalid workflow_call input 'notarize'. Use 'true' or 'false'"; exit 2 ;;
+          esac
+
+          case "${{ inputs.config }}" in
+            Debug|RelWithDebInfo|Release|MinSizeRel) echo "config=${{ inputs.config }}" >> $GITHUB_OUTPUT ;;
+            '') ;;
+            *) echo "::error::Invalid workflow_call input 'config'"; exit 2 ;;
+          esac
+
+          echo "commitHash=$(git rev-parse --short=9 HEAD)" >> $GITHUB_OUTPUT
 
           plugin_name="$(grep 'name' buildspec.json | sed -E -e 's/^.+"name":[^"]+"(.+)",?$/\1/g')"
           plugin_display_name="$(grep 'displayName' buildspec.json | sed -E -e 's/^.+"displayName":[^"]+"(.+)",?$/\1/g' || echo "")"
@@ -81,6 +128,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.ref || github.sha }}
           submodules: recursive
           fetch-depth: 0
 
@@ -188,6 +236,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.ref || github.sha }}
           submodules: recursive
           fetch-depth: 0
 
@@ -259,6 +308,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ inputs.ref || github.sha }}
           submodules: recursive
           fetch-depth: 0
 
