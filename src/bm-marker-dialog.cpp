@@ -134,6 +134,8 @@ void MarkerDialog::prepare_for_immediate_input(bool aggressive_focus)
 {
 	m_request_immediate_focus = true;
 	m_aggressive_focus = aggressive_focus;
+	if (m_aggressive_focus)
+		setWindowFlag(Qt::WindowStaysOnTopHint, true);
 }
 
 void MarkerDialog::set_platform_activation_callback(std::function<bool()> callback)
