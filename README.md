@@ -1,66 +1,49 @@
-# Better Markers (OBS Plugin)
+# Better Markers for OBS
 
-Better Markers is an OBS frontend plugin that adds Premiere Pro-compatible clip markers during recording.
+Better Markers lets you drop editing markers while recording in OBS, so your footage is easier to cut in Premiere Pro later.
 
-## What It Does
+## What You Get
 
-- Adds a **Better Markers** dock with an **Add Marker** button on the main OBS screen.
-- Lets you create marker templates in **Tools -> Better Markers Settings** with:
-  - template name
+- `Add Marker` button directly in OBS
+- Marker templates with:
   - title
   - description
-  - Premiere marker color
-  - per-field editable flags for add-marker dialogs
-  - scope (`Global`, `Profile`, `Scene Collection`)
-- Registers hotkeys in OBS **Settings -> Hotkeys** for:
-  - `Better Markers: Quick Marker`
-  - `Better Markers: Quick Custom Marker`
-  - every active template (scope-aware)
-- Captures marker time **at trigger press**, not at dialog submit.
-- Allows marker creation **only while recording and not paused**.
-- Writes XMP sidecar markers immediately for the active recording file.
-- On split/stop, tries native MP4/MOV embed into `moov/udta/XMP_` with safe temp rewrite and rollback.
-- Keeps sidecar files even after successful embed.
-- Queues failed embed jobs and retries them on plugin load.
+  - color
+  - optional editable fields while adding a marker
+- Scope support:
+  - Global
+  - Profile (with profile picker)
+  - Scene Collection (with scene collection picker)
+- Quick marker hotkeys in OBS
+- Automatic sidecar + MP4/MOV metadata embed workflow
 
-## Scope Model
+## How To Use
 
-Active templates are the union of:
+1. Open OBS.
+2. Go to `Tools -> Better Markers Settings`.
+3. Create templates (optionally bind them to a specific Profile or Scene Collection).
+4. Assign hotkeys in `Settings -> Hotkeys`.
+5. Start recording and add markers with the dock button or hotkeys.
 
-- `Global`
-- current `Profile`
-- current `Scene Collection`
+## Languages
 
-Each template keeps its own scoped hotkey binding data.
+The plugin uses the same language as your OBS UI automatically.
 
-## Premiere XMP Mapping
+Included locales:
 
-Each marker is written as:
+- English (`en-US`)
+- Spanish (`es-ES`)
+- Portuguese - Brazil (`pt-BR`)
+- German (`de-DE`)
+- French (`fr-FR`)
+- Russian (`ru-RU`)
+- Japanese (`ja-JP`)
+- Korean (`ko-KR`)
+- Chinese Simplified (`zh-CN`)
+- Chinese Traditional (`zh-TW`)
+- Turkish (`tr-TR`)
 
-- `xmpDM:startTime` (frame index, 0-based)
-- `xmpDM:duration` (`0`)
-- `xmpDM:name`
-- `xmpDM:comment`
-- `xmpDM:type` (`Cue`)
-- `xmpDM:guid` (UUIDv4)
-- `xmpDM:cuePointParams` with:
-  - `marker_guid`
-  - `color` (`0..8`, Premiere color IDs)
+## Important Notes
 
-Track metadata:
-
-- `trackName = Adobe Premiere Pro Clip Marker`
-- `trackType = Clip`
-- `frameRate = <num>f<den>s`
-
-## Build (macOS)
-
-```bash
-cmake --preset macos
-cmake --build --preset macos --config RelWithDebInfo
-```
-
-## Notes
-
-- UI is English-only.
-- If MP4/MOV embedding fails, original recording is preserved and sidecar remains authoritative.
+- Markers can be added only while recording is active (not paused).
+- If direct embed fails, marker data is kept safely and retried.
