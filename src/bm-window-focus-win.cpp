@@ -25,6 +25,8 @@ bool activate_hwnd(HWND hwnd)
 
 	if (IsIconic(hwnd))
 		ShowWindow(hwnd, SW_RESTORE);
+	else if (IsZoomed(hwnd))
+		ShowWindow(hwnd, SW_SHOWMAXIMIZED);
 	else
 		ShowWindow(hwnd, SW_SHOWNORMAL);
 
@@ -33,7 +35,29 @@ bool activate_hwnd(HWND hwnd)
 	BringWindowToTop(hwnd);
 	AllowSetForegroundWindow(ASFW_ANY);
 
-	const bool foreground_set = (SetForegroundWindow(hwnd) != FALSE);
+	bool foreground_set = (SetForegroundWindow(hwnd) != FALSE);
+	if (!foreground_set && GetForegroundWindow() != hwnd) {
+		const HWND foreground = GetForegroundWindow();
+		const DWORD self_tid = GetCurrentThreadId();
+		const DWORD target_tid = GetWindowThreadProcessId(hwnd, nullptr);
+		const DWORD foreground_tid = foreground ? GetWindowThreadProcessId(foreground, nullptr) : 0;
+
+		bool attached_foreground = false;
+		bool attached_target = false;
+		if (foreground_tid != 0 && foreground_tid != self_tid)
+			attached_foreground = (AttachThreadInput(self_tid, foreground_tid, TRUE) != FALSE);
+		if (target_tid != 0 && target_tid != self_tid && target_tid != foreground_tid)
+			attached_target = (AttachThreadInput(self_tid, target_tid, TRUE) != FALSE);
+
+		BringWindowToTop(hwnd);
+		foreground_set = (SetForegroundWindow(hwnd) != FALSE);
+
+		if (attached_target)
+			AttachThreadInput(self_tid, target_tid, FALSE);
+		if (attached_foreground)
+			AttachThreadInput(self_tid, foreground_tid, FALSE);
+	}
+
 	SetActiveWindow(hwnd);
 	return foreground_set || GetForegroundWindow() == hwnd;
 }
