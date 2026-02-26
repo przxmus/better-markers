@@ -341,7 +341,7 @@ private:
 
 			if (release_tags_match(latest_tag, QString::fromUtf8(PLUGIN_VERSION)))
 				return;
-			if (m_store.skipped_update_tag() == latest_tag)
+			if (release_tags_match(m_store.skipped_update_tag(), latest_tag))
 				return;
 
 			QString release_url = release.value("html_url").toString().trimmed();
