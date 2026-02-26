@@ -76,6 +76,7 @@ void test_scope_store_migration_defaults()
 	require(!export_profile.isEmpty(), "migrated global store includes exportProfile");
 	require(export_profile.value("enablePremiereXmp").toBool(false), "migrated exportProfile Premiere value");
 	require(doc.object().value("skippedUpdateTag").toString().isEmpty(), "migrated global store has empty skipped tag");
+	require(doc.object().value("autoFocusMarkerDialog").toBool(false), "migrated global store has autofocus enabled");
 }
 
 void test_scope_store_skipped_update_tag_persistence()
@@ -97,6 +98,25 @@ void test_scope_store_skipped_update_tag_persistence()
 	require(reloaded.skipped_update_tag() == "v1.0.1", "persisted skipped tag matches");
 }
 
+void test_scope_store_auto_focus_persistence()
+{
+	QTemporaryDir temp_dir;
+	require(temp_dir.isValid(), "temporary directory created for auto focus");
+
+	bm::ScopeStore store;
+	store.set_base_dir(temp_dir.path());
+	require(store.load_global(), "load empty global store for auto focus");
+	require(store.auto_focus_marker_dialog(), "default auto focus is enabled");
+
+	store.set_auto_focus_marker_dialog(false);
+	require(store.save_global(), "save global store with auto focus disabled");
+
+	bm::ScopeStore reloaded;
+	reloaded.set_base_dir(temp_dir.path());
+	require(reloaded.load_global(), "reload global store with auto focus disabled");
+	require(!reloaded.auto_focus_marker_dialog(), "persisted auto focus value matches");
+}
+
 } // namespace
 
 void run_config_tests()
@@ -105,4 +125,5 @@ void run_config_tests()
 	test_export_profile_fallback_values();
 	test_scope_store_migration_defaults();
 	test_scope_store_skipped_update_tag_persistence();
+	test_scope_store_auto_focus_persistence();
 }
