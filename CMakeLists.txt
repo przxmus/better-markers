@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.28...3.30)
 include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/common/bootstrap.cmake" NO_POLICY_SCOPE)
 
 project(${_name} VERSION ${_version})
+include(CTest)
 
 option(ENABLE_FRONTEND_API "Use obs-frontend-api for UI functionality" ON)
 option(ENABLE_QT "Use Qt functionality" ON)
@@ -102,3 +103,42 @@ if(ENABLE_QT)
 endif()
 
 set_target_properties_plugin(${CMAKE_PROJECT_NAME} PROPERTIES OUTPUT_NAME ${_name})
+
+if(BUILD_TESTING AND ENABLE_QT)
+  add_executable(
+    better-markers-tests
+    tests/fcpxml-tests.cpp
+    src/bm-fcpxml-writer.cpp
+  )
+  target_include_directories(better-markers-tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
+  target_compile_features(better-markers-tests PRIVATE cxx_std_17)
+  if(APPLE)
+    target_compile_options(
+      better-markers-tests
+      PRIVATE -Wno-quoted-include-in-framework-header -Wno-comma
+    )
+    target_include_directories(
+      better-markers-tests
+      PRIVATE
+        "${QT_FRAMEWORK_DIR}/QtCore.framework/Headers"
+        "${CMAKE_CURRENT_SOURCE_DIR}/.deps/obs-deps-qt6-2025-07-11-universal/include"
+    )
+    target_link_options(
+      better-markers-tests
+      PRIVATE "-F${QT_FRAMEWORK_DIR}" "-iframework${QT_FRAMEWORK_DIR}"
+    )
+    target_compile_options(
+      better-markers-tests
+      PRIVATE "-F${QT_FRAMEWORK_DIR}" "-iframework${QT_FRAMEWORK_DIR}"
+    )
+    target_link_libraries(better-markers-tests PRIVATE "-framework QtCore")
+  else()
+    find_package(Qt6 COMPONENTS Core REQUIRED)
+    target_link_libraries(better-markers-tests PRIVATE Qt6::Core)
+  endif()
+
+  add_test(NAME fcpxml-tests COMMAND better-markers-tests)
+  if(APPLE)
+    set_tests_properties(fcpxml-tests PROPERTIES ENVIRONMENT "DYLD_FRAMEWORK_PATH=${QT_FRAMEWORK_DIR}")
+  endif()
+endif()
