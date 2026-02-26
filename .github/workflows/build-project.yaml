@@ -361,6 +361,13 @@ jobs:
           path: ${{ github.workspace }}/.ccache
           key: ${{ runner.os }}-${{ matrix.os }}-ccache-x86_64-${{ needs.check-event.outputs.config }}
 
+      - name: Fix apt archive cache ownership
+        if: ${{ always() }}
+        run: |
+          if [[ -d "${APT_ARCHIVE_DIR}" ]]; then
+            sudo chown -R "$(id -u):$(id -g)" "${APT_ARCHIVE_DIR}" || true
+          fi
+
       - name: Save apt archive cache
         uses: actions/cache/save@v4
         if: ${{ always() && steps.apt-cache.outputs.cache-hit != 'true' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository) }}
