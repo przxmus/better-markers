@@ -131,7 +131,8 @@ bool fetch_latest_release_with_curl(QByteArray *payload, QString *error)
 
 	static std::once_flag curl_init_once;
 	static CURLcode curl_init_result = CURLE_OK;
-	std::call_once(curl_init_once, []() { curl_init_result = static_cast<CURLcode>(curl_global_init(CURL_GLOBAL_DEFAULT)); });
+	std::call_once(curl_init_once,
+		       []() { curl_init_result = static_cast<CURLcode>(curl_global_init(CURL_GLOBAL_DEFAULT)); });
 	if (curl_init_result != CURLE_OK) {
 		if (error)
 			*error = QString("curl global init failed: %1").arg(curl_easy_strerror(curl_init_result));
@@ -203,7 +204,8 @@ public:
 		m_store.load_global();
 
 		QMainWindow *main_window = static_cast<QMainWindow *>(obs_frontend_get_main_window());
-		m_controller = std::make_unique<bm::MarkerController>(&m_store, &m_tracker, main_window, m_store_base_dir);
+		m_controller =
+			std::make_unique<bm::MarkerController>(&m_store, &m_tracker, main_window, m_store_base_dir);
 		m_controller->set_shutting_down(false);
 		m_tracker.set_file_changed_callback([this](const QString &closed_file, const QString &next_file) {
 			if (m_controller)
@@ -233,11 +235,11 @@ public:
 		obs_frontend_add_save_callback(&BetterMarkersPlugin::on_frontend_save, this);
 		obs_frontend_add_event_callback(&BetterMarkersPlugin::on_frontend_event, this);
 
-		m_settings_action = static_cast<QAction *>(
-			obs_frontend_add_tools_menu_qaction(bm::bm_text("BetterMarkers.SettingsMenu").toUtf8().constData()));
+		m_settings_action = static_cast<QAction *>(obs_frontend_add_tools_menu_qaction(
+			bm::bm_text("BetterMarkers.SettingsMenu").toUtf8().constData()));
 		if (m_settings_action) {
-			m_settings_action_connection =
-				QObject::connect(m_settings_action, &QAction::triggered, [this]() { show_settings_dialog(); });
+			m_settings_action_connection = QObject::connect(m_settings_action, &QAction::triggered,
+									[this]() { show_settings_dialog(); });
 		}
 
 		create_main_dock(main_window);
@@ -332,7 +334,8 @@ private:
 			return;
 		}
 
-		if (event == OBS_FRONTEND_EVENT_PROFILE_CHANGING || event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGING) {
+		if (event == OBS_FRONTEND_EVENT_PROFILE_CHANGING ||
+		    event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGING) {
 			if (self->m_hotkeys)
 				self->m_hotkeys->save_bindings();
 			self->persist_non_scene();
@@ -450,7 +453,8 @@ private:
 			}
 
 			if (reply->error() != QNetworkReply::NoError) {
-				obs_log(LOG_WARNING, "Better Markers update check failed: %s", reply->errorString().toUtf8().constData());
+				obs_log(LOG_WARNING, "Better Markers update check failed: %s",
+					reply->errorString().toUtf8().constData());
 				reply->deleteLater();
 				try_update_check_with_curl();
 				return;
@@ -470,7 +474,8 @@ private:
 		QByteArray payload;
 		QString error;
 		if (!fetch_latest_release_with_curl(&payload, &error)) {
-			obs_log(LOG_WARNING, "Better Markers update check fallback failed: %s", error.toUtf8().constData());
+			obs_log(LOG_WARNING, "Better Markers update check fallback failed: %s",
+				error.toUtf8().constData());
 			return;
 		}
 
@@ -512,11 +517,10 @@ private:
 		dialog.setModal(true);
 
 		auto *layout = new QVBoxLayout(&dialog);
-		auto *message = new QLabel(
-			bm::bm_text("BetterMarkers.Update.Message")
-				.arg(QString::fromUtf8(PLUGIN_VERSION))
-				.arg(latest_tag),
-			&dialog);
+		auto *message = new QLabel(bm::bm_text("BetterMarkers.Update.Message")
+						   .arg(QString::fromUtf8(PLUGIN_VERSION))
+						   .arg(latest_tag),
+					   &dialog);
 		message->setWordWrap(true);
 		layout->addWidget(message);
 
@@ -532,8 +536,10 @@ private:
 		layout->addLayout(buttons_layout);
 
 		QObject::connect(skip_button, &QPushButton::clicked, [&dialog]() { dialog.done(UPDATE_ACTION_SKIP); });
-		QObject::connect(ignore_button, &QPushButton::clicked, [&dialog]() { dialog.done(UPDATE_ACTION_IGNORE); });
-		QObject::connect(install_button, &QPushButton::clicked, [&dialog]() { dialog.done(UPDATE_ACTION_INSTALL); });
+		QObject::connect(ignore_button, &QPushButton::clicked,
+				 [&dialog]() { dialog.done(UPDATE_ACTION_IGNORE); });
+		QObject::connect(install_button, &QPushButton::clicked,
+				 [&dialog]() { dialog.done(UPDATE_ACTION_INSTALL); });
 
 		const int action = dialog.exec();
 		if (action == UPDATE_ACTION_SKIP) {

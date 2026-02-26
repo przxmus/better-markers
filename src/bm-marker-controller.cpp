@@ -18,7 +18,9 @@ namespace bm {
 
 MarkerController::MarkerController(ScopeStore *store, RecordingSessionTracker *tracker, QWidget *parent_window,
 				   const QString &base_store_dir)
-	: m_store(store), m_tracker(tracker), m_parent_window(parent_window),
+	: m_store(store),
+	  m_tracker(tracker),
+	  m_parent_window(parent_window),
 	  m_premiere_xmp_sink(base_store_dir + "/pending-embed.json")
 {
 	set_export_profile(ExportProfile{});
@@ -67,8 +69,8 @@ void MarkerController::add_marker_from_main_button()
 	if (dialog.exec() != QDialog::Accepted)
 		return;
 
-	const MarkerRecord marker = marker_from_inputs(ctx, dialog.marker_title(), dialog.marker_description(),
-					       dialog.marker_color_id());
+	const MarkerRecord marker =
+		marker_from_inputs(ctx, dialog.marker_title(), dialog.marker_description(), dialog.marker_color_id());
 	append_marker(ctx.media_path, marker);
 }
 
@@ -120,8 +122,8 @@ void MarkerController::quick_custom_marker()
 	if (dialog.exec() != QDialog::Accepted)
 		return;
 
-	const MarkerRecord marker = marker_from_inputs(ctx, dialog.marker_title(), dialog.marker_description(),
-					       dialog.marker_color_id());
+	const MarkerRecord marker =
+		marker_from_inputs(ctx, dialog.marker_title(), dialog.marker_description(), dialog.marker_color_id());
 	append_marker(ctx.media_path, marker);
 }
 
@@ -174,7 +176,7 @@ bool MarkerController::capture_pending_context(PendingMarkerContext *out_ctx, bo
 }
 
 MarkerRecord MarkerController::marker_from_inputs(const PendingMarkerContext &ctx, const QString &title,
-						   const QString &description, int color_id) const
+						  const QString &description, int color_id) const
 {
 	MarkerRecord marker;
 	marker.start_frame = ctx.frozen_frame;
@@ -218,16 +220,15 @@ void MarkerController::append_marker(const QString &media_path, const MarkerReco
 	const MarkerExportRecordingContext ctx = make_recording_context(media_path);
 	QString error;
 	if (!dispatch_marker_added(ctx, marker, markers, &error)) {
-		blog(LOG_ERROR, "[better-markers] failed to export marker for '%s': %s", media_path.toUtf8().constData(),
-		     error.toUtf8().constData());
+		blog(LOG_ERROR, "[better-markers] failed to export marker for '%s': %s",
+		     media_path.toUtf8().constData(), error.toUtf8().constData());
 		show_warning_async(bm_text("BetterMarkers.Warning.FailedToWriteSidecar").arg(error));
 		return;
 	}
 
-	blog(LOG_INFO,
-		"[better-markers] marker added: file=%s frame=%lld color=%d title='%s'",
-		media_path.toUtf8().constData(), static_cast<long long>(marker.start_frame), marker.color_id,
-		marker.name.toUtf8().constData());
+	blog(LOG_INFO, "[better-markers] marker added: file=%s frame=%lld color=%d title='%s'",
+	     media_path.toUtf8().constData(), static_cast<long long>(marker.start_frame), marker.color_id,
+	     marker.name.toUtf8().constData());
 }
 
 void MarkerController::finalize_closed_file(const QString &closed_file)
@@ -266,8 +267,8 @@ bool MarkerController::dispatch_marker_added(const MarkerExportRecordingContext 
 			continue;
 		QString sink_error;
 		if (!sink->on_marker_added(ctx, marker, full_marker_list, &sink_error)) {
-			blog(LOG_ERROR, "[better-markers][%s] marker export failed: %s", sink->sink_name().toUtf8().constData(),
-			     sink_error.toUtf8().constData());
+			blog(LOG_ERROR, "[better-markers][%s] marker export failed: %s",
+			     sink->sink_name().toUtf8().constData(), sink_error.toUtf8().constData());
 			if (error) {
 				const QString prefix = error->isEmpty() ? QString() : QString("; ");
 				*error += prefix + QString("%1: %2").arg(sink->sink_name(), sink_error);
@@ -310,13 +311,14 @@ void MarkerController::show_warning_async(const QString &message) const
 	if (!app || parent.isNull())
 		return;
 
-	QMetaObject::invokeMethod(app,
-				  [parent, message]() {
-					  if (parent.isNull())
-						  return;
-					  QMessageBox::warning(parent.data(), bm_text("BetterMarkers.DockTitle"), message);
-				  },
-				  Qt::QueuedConnection);
+	QMetaObject::invokeMethod(
+		app,
+		[parent, message]() {
+			if (parent.isNull())
+				return;
+			QMessageBox::warning(parent.data(), bm_text("BetterMarkers.DockTitle"), message);
+		},
+		Qt::QueuedConnection);
 }
 
 bool MarkerController::template_has_editables(const MarkerTemplate &templ)

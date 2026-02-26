@@ -218,7 +218,8 @@ QString ScopeStore::current_scene_collection_name() const
 	return m_scene_collection_name;
 }
 
-void ScopeStore::merge_legacy_templates(const ScopedStoreData &legacy_store, TemplateScope scope, const QString &target_name)
+void ScopeStore::merge_legacy_templates(const ScopedStoreData &legacy_store, TemplateScope scope,
+					const QString &target_name)
 {
 	for (MarkerTemplate templ : legacy_store.templates) {
 		if (templ.id.isEmpty() || has_template_id(templ.id))

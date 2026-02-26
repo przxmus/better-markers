@@ -75,8 +75,10 @@ void test_scope_store_migration_defaults()
 	const QJsonObject export_profile = doc.object().value("exportProfile").toObject();
 	require(!export_profile.isEmpty(), "migrated global store includes exportProfile");
 	require(export_profile.value("enablePremiereXmp").toBool(false), "migrated exportProfile Premiere value");
-	require(doc.object().value("skippedUpdateTag").toString().isEmpty(), "migrated global store has empty skipped tag");
-	require(doc.object().value("autoFocusMarkerDialog").toBool(false), "migrated global store has autofocus enabled");
+	require(doc.object().value("skippedUpdateTag").toString().isEmpty(),
+		"migrated global store has empty skipped tag");
+	require(doc.object().value("autoFocusMarkerDialog").toBool(false),
+		"migrated global store has autofocus enabled");
 }
 
 void test_scope_store_skipped_update_tag_persistence()

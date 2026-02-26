@@ -40,7 +40,8 @@ public:
 	QString current_scene_collection_name() const;
 
 private:
-	void merge_legacy_templates(const ScopedStoreData &legacy_store, TemplateScope scope, const QString &target_name);
+	void merge_legacy_templates(const ScopedStoreData &legacy_store, TemplateScope scope,
+				    const QString &target_name);
 	bool has_template_id(const QString &id) const;
 
 	QString m_base_dir;

@@ -49,7 +49,8 @@ SettingsDialog::SettingsDialog(ScopeStore *store, QWidget *parent) : QDialog(par
 	header_row->addStretch(1);
 	auto *version_layout = new QVBoxLayout();
 	version_layout->setSpacing(2);
-	m_version_label = new QLabel(bm_text("BetterMarkers.Settings.Version").arg(QString::fromUtf8(PLUGIN_VERSION)), this);
+	m_version_label =
+		new QLabel(bm_text("BetterMarkers.Settings.Version").arg(QString::fromUtf8(PLUGIN_VERSION)), this);
 	m_version_label->setAlignment(Qt::AlignRight | Qt::AlignTop);
 	version_layout->addWidget(m_version_label);
 	m_update_available_label = new QLabel(this);
@@ -152,7 +153,8 @@ void SettingsDialog::set_update_availability(bool update_available, const QStrin
 	if (m_update_available_label) {
 		if (show_link) {
 			const QString anchor = QString("<a href=\"%1\">%2</a>")
-					       .arg(m_release_url.toHtmlEscaped(), bm_text("BetterMarkers.Settings.UpdateAvailable"));
+						       .arg(m_release_url.toHtmlEscaped(),
+							    bm_text("BetterMarkers.Settings.UpdateAvailable"));
 			m_update_available_label->setText(anchor);
 			m_update_available_label->show();
 		} else {
@@ -214,8 +216,8 @@ void SettingsDialog::update_export_profile_from_ui()
 
 void SettingsDialog::add_template()
 {
-	TemplateEditorDialog editor(available_profiles(), available_scene_collections(), m_store->current_profile_name(),
-				    m_store->current_scene_collection_name(), this);
+	TemplateEditorDialog editor(available_profiles(), available_scene_collections(),
+				    m_store->current_profile_name(), m_store->current_scene_collection_name(), this);
 	MarkerTemplate templ;
 	templ.scope = TemplateScope::SceneCollection;
 	templ.color_id = 0;
@@ -244,8 +246,8 @@ void SettingsDialog::edit_template()
 	if (selected.index >= scope_store.templates.size())
 		return;
 
-	TemplateEditorDialog editor(available_profiles(), available_scene_collections(), m_store->current_profile_name(),
-				    m_store->current_scene_collection_name(), this);
+	TemplateEditorDialog editor(available_profiles(), available_scene_collections(),
+				    m_store->current_profile_name(), m_store->current_scene_collection_name(), this);
 	editor.set_template(scope_store.templates.at(selected.index));
 
 	if (editor.exec() != QDialog::Accepted)
@@ -272,9 +274,8 @@ void SettingsDialog::delete_template()
 		return;
 
 	const MarkerTemplate templ = scope_store.templates.at(selected.index);
-	const auto answer = QMessageBox::question(
-		this, bm_text("BetterMarkers.Settings.DeleteTitle"),
-		bm_text("BetterMarkers.Settings.DeleteMessage").arg(templ.name));
+	const auto answer = QMessageBox::question(this, bm_text("BetterMarkers.Settings.DeleteTitle"),
+						  bm_text("BetterMarkers.Settings.DeleteMessage").arg(templ.name));
 	if (answer != QMessageBox::Yes)
 		return;
 

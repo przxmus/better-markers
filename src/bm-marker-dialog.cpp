@@ -37,7 +37,10 @@ QString scope_label(TemplateScope scope)
 
 MarkerDialog::MarkerDialog(const QVector<MarkerTemplate> &templates, Mode mode, const QString &fixed_template_id,
 			   QWidget *parent)
-	: QDialog(parent), m_templates(templates), m_mode(mode), m_fixed_template_id(fixed_template_id)
+	: QDialog(parent),
+	  m_templates(templates),
+	  m_mode(mode),
+	  m_fixed_template_id(fixed_template_id)
 {
 	setModal(true);
 	setWindowTitle(bm_text("BetterMarkers.AddMarkerButton"));
