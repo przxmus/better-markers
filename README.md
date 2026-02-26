@@ -14,6 +14,19 @@ Better Markers lets you drop edit markers while recording in OBS and export them
   - DaVinci Resolve (FCPXML timeline markers)
   - Final Cut Pro on macOS (FCPXML clip markers)
 
+## Install (Windows ZIP)
+
+1. Close OBS.
+2. Open the release `.zip`.
+3. Drag `obs-plugins` and `data` from the ZIP directly into your `obs-studio` folder:
+   - usually `C:\Program Files\obs-studio`
+4. Reopen OBS.
+
+This places files in:
+- `C:\Program Files\obs-studio\obs-plugins\64bit\better-markers.dll`
+- `C:\Program Files\obs-studio\obs-plugins\64bit\better-markers.pdb` (if included in the build)
+- `C:\Program Files\obs-studio\data\obs-plugins\better-markers\locale\*.ini`
+
 ## Quick Start
 
 1. Open OBS and go to `Tools -> Better Markers Settings`.
