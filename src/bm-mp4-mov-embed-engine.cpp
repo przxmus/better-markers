@@ -194,81 +194,6 @@ QByteArray make_uuid_atom(const QByteArray &payload, bool *ok)
 	return atom;
 }
 
-QByteArray patch_udta(const QByteArray &udta_atom, const QByteArray &xmp_payload, QString *error)
-{
-	QVector<Atom> children;
-	if (!parse_atoms_from_buffer(udta_atom, 8, udta_atom.size(), children, error))
-		return {};
-
-	bool ok = true;
-	const QByteArray xmp_atom = make_uuid_atom(xmp_payload, &ok);
-	if (!ok) {
-		if (error)
-			*error = "XMP uuid atom too large";
-		return {};
-	}
-
-	QByteArray new_payload;
-	new_payload.reserve(udta_atom.size() + xmp_atom.size());
-	bool replaced = false;
-	for (const Atom &child : children) {
-		const QByteArray child_atom = udta_atom.mid(static_cast<int>(child.offset), static_cast<int>(child.size));
-		if (child.type == "XMP_" || (child.type == "uuid" && is_xmp_uuid_atom(child_atom))) {
-			new_payload.append(xmp_atom);
-			replaced = true;
-		} else {
-			new_payload.append(child_atom);
-		}
-	}
-	if (!replaced)
-		new_payload.append(xmp_atom);
-
-	return make_atom("udta", new_payload, &ok);
-}
-
-QByteArray patch_moov(const QByteArray &moov_atom, const QByteArray &xmp_payload, QString *error)
-{
-	QVector<Atom> children;
-	if (!parse_atoms_from_buffer(moov_atom, 8, moov_atom.size(), children, error))
-		return {};
-
-	QByteArray new_payload;
-	new_payload.reserve(moov_atom.size() + xmp_payload.size() + 64);
-	bool patched_udta = false;
-	bool ok = true;
-
-	for (const Atom &child : children) {
-		if (child.type == "udta") {
-			const QByteArray udta_atom = moov_atom.mid(static_cast<int>(child.offset), static_cast<int>(child.size));
-			const QByteArray patched = patch_udta(udta_atom, xmp_payload, error);
-			if (patched.isEmpty())
-				return {};
-			new_payload.append(patched);
-			patched_udta = true;
-		} else {
-			new_payload.append(moov_atom.mid(static_cast<int>(child.offset), static_cast<int>(child.size)));
-		}
-	}
-
-	if (!patched_udta) {
-		const QByteArray udta_atom = make_atom("udta", make_uuid_atom(xmp_payload, &ok), &ok);
-		if (!ok) {
-			if (error)
-				*error = "Failed to build udta atom";
-			return {};
-		}
-		new_payload.append(udta_atom);
-	}
-
-	const QByteArray new_moov = make_atom("moov", new_payload, &ok);
-	if (!ok) {
-		if (error)
-			*error = "Failed to build moov atom";
-		return {};
-	}
-	return new_moov;
-}
-
 bool copy_range(QFile &input, QFile &output, quint64 offset, quint64 length, QString *error)
 {
 	if (!input.seek(static_cast<qint64>(offset))) {
@@ -308,6 +233,22 @@ bool has_xmp_atom(const QString &path)
 	if (!parse_top_level_atoms(file, top, &error))
 		return false;
 
+	for (const Atom &atom : top) {
+		if (atom.type == "XMP_")
+			return true;
+		if (atom.type != "uuid")
+			continue;
+
+		if (!file.seek(static_cast<qint64>(atom.offset)))
+			return false;
+		const QByteArray uuid_atom = file.read(static_cast<qint64>(atom.size));
+		if (uuid_atom.size() != static_cast<qint64>(atom.size))
+			return false;
+		if (is_xmp_uuid_atom(uuid_atom))
+			return true;
+	}
+
+	// Compatibility fallback for files that store XMP inside moov/udta.
 	for (const Atom &atom : top) {
 		if (atom.type != "moov")
 			continue;
@@ -375,31 +316,26 @@ EmbedResult Mp4MovEmbedEngine::embed_xmp(const QString &media_path, const QByteA
 	if (!parse_top_level_atoms(input, top_level, &error))
 		return {false, QString("Failed to parse MP4/MOV atoms: %1").arg(error)};
 
-	int moov_index = -1;
+	bool ok = true;
+	const QByteArray xmp_atom = make_uuid_atom(xmp_payload, &ok);
+	if (!ok)
+		return {false, "XMP payload is too large for MP4 uuid atom"};
+
+	int existing_xmp_index = -1;
 	for (int i = 0; i < top_level.size(); ++i) {
-		if (top_level.at(i).type == "moov") {
-			moov_index = i;
+		const Atom &atom = top_level.at(i);
+		if (atom.type != "uuid")
+			continue;
+		if (!input.seek(static_cast<qint64>(atom.offset)))
+			return {false, "Failed to seek existing uuid atom"};
+		const QByteArray uuid_atom = input.read(static_cast<qint64>(atom.size));
+		if (uuid_atom.size() != static_cast<qint64>(atom.size))
+			return {false, "Failed to read existing uuid atom"};
+		if (is_xmp_uuid_atom(uuid_atom)) {
+			existing_xmp_index = i;
 			break;
 		}
 	}
-	if (moov_index < 0)
-		return {false, "Missing moov atom"};
-
-	const Atom moov = top_level.at(moov_index);
-	for (const Atom &atom : top_level) {
-		if (atom.type == "mdat" && atom.offset > moov.offset)
-			return {false, "Unsupported layout: moov before mdat"};
-	}
-
-	if (!input.seek(static_cast<qint64>(moov.offset)))
-		return {false, "Failed to seek moov atom"};
-	const QByteArray moov_data = input.read(static_cast<qint64>(moov.size));
-	if (moov_data.size() != static_cast<qint64>(moov.size))
-		return {false, "Failed to read full moov atom"};
-
-	const QByteArray new_moov = patch_moov(moov_data, xmp_payload, &error);
-	if (new_moov.isEmpty())
-		return {false, QString("Failed to patch moov atom: %1").arg(error)};
 
 	const QString temp_path = media_path + ".better-markers.tmp";
 	const QString backup_path = media_path + ".better-markers.bak";
@@ -409,23 +345,38 @@ EmbedResult Mp4MovEmbedEngine::embed_xmp(const QString &media_path, const QByteA
 	if (!output.open(QIODevice::WriteOnly | QIODevice::Truncate))
 		return {false, QString("Failed to open temp file: %1").arg(temp_path)};
 
-	if (!copy_range(input, output, 0, moov.offset, &error)) {
-		output.close();
-		QFile::remove(temp_path);
-		return {false, error};
-	}
-	if (output.write(new_moov) != new_moov.size()) {
-		output.close();
-		QFile::remove(temp_path);
-		return {false, "Failed to write patched moov atom"};
-	}
+	if (existing_xmp_index >= 0) {
+		const Atom existing_xmp = top_level.at(existing_xmp_index);
 
-	const quint64 tail_offset = moov.offset + moov.size;
-	const quint64 tail_size = static_cast<quint64>(input.size()) - tail_offset;
-	if (!copy_range(input, output, tail_offset, tail_size, &error)) {
-		output.close();
-		QFile::remove(temp_path);
-		return {false, error};
+		if (!copy_range(input, output, 0, existing_xmp.offset, &error)) {
+			output.close();
+			QFile::remove(temp_path);
+			return {false, error};
+		}
+		if (output.write(xmp_atom) != xmp_atom.size()) {
+			output.close();
+			QFile::remove(temp_path);
+			return {false, "Failed to write replacement XMP uuid atom"};
+		}
+
+		const quint64 tail_offset = existing_xmp.offset + existing_xmp.size;
+		const quint64 tail_size = static_cast<quint64>(input.size()) - tail_offset;
+		if (!copy_range(input, output, tail_offset, tail_size, &error)) {
+			output.close();
+			QFile::remove(temp_path);
+			return {false, error};
+		}
+	} else {
+		if (!copy_range(input, output, 0, static_cast<quint64>(input.size()), &error)) {
+			output.close();
+			QFile::remove(temp_path);
+			return {false, error};
+		}
+		if (output.write(xmp_atom) != xmp_atom.size()) {
+			output.close();
+			QFile::remove(temp_path);
+			return {false, "Failed to append XMP uuid atom"};
+		}
 	}
 	output.close();
 	input.close();
