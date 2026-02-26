@@ -41,7 +41,7 @@ SettingsDialog::SettingsDialog(ScopeStore *store, QWidget *parent) : QDialog(par
 	main_layout->addWidget(m_template_list, 1);
 
 	auto *button_row = new QHBoxLayout();
-	auto *add_btn = new QPushButton("Add", this);
+	auto *add_btn = new QPushButton("Add Template", this);
 	m_edit_button = new QPushButton("Edit", this);
 	m_delete_button = new QPushButton("Delete", this);
 	auto *close_btn = new QPushButton("Close", this);

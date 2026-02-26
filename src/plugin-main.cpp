@@ -42,6 +42,9 @@ namespace {
 
 constexpr const char *SCENE_STORE_KEY = "better-markers.scene-store";
 constexpr const char *DOCK_ID = "better-markers.dock";
+constexpr const char *TOOLS_MENU_TITLE = "Better Markers Settings";
+constexpr const char *DOCK_TITLE = "Better Markers";
+constexpr const char *ADD_MARKER_BUTTON_TITLE = "Add Marker";
 
 class BetterMarkersPlugin {
 public:
@@ -87,8 +90,7 @@ public:
 		obs_frontend_add_save_callback(&BetterMarkersPlugin::on_frontend_save, this);
 		obs_frontend_add_event_callback(&BetterMarkersPlugin::on_frontend_event, this);
 
-		m_settings_action = static_cast<QAction *>(
-			obs_frontend_add_tools_menu_qaction(obs_module_text("BetterMarkers.SettingsMenu")));
+		m_settings_action = static_cast<QAction *>(obs_frontend_add_tools_menu_qaction(TOOLS_MENU_TITLE));
 		if (m_settings_action) {
 			QObject::connect(m_settings_action, &QAction::triggered, [this]() { show_settings_dialog(); });
 		}
@@ -234,7 +236,7 @@ private:
 		auto *layout = new QVBoxLayout(m_dock_widget);
 		layout->setContentsMargins(8, 8, 8, 8);
 
-		auto *add_marker_button = new QPushButton(obs_module_text("BetterMarkers.AddMarkerButton"), m_dock_widget);
+		auto *add_marker_button = new QPushButton(ADD_MARKER_BUTTON_TITLE, m_dock_widget);
 		layout->addWidget(add_marker_button);
 		layout->addStretch(1);
 
@@ -243,7 +245,7 @@ private:
 				m_controller->add_marker_from_main_button();
 		});
 
-		obs_frontend_add_dock_by_id(DOCK_ID, obs_module_text("BetterMarkers.DockTitle"), m_dock_widget);
+		obs_frontend_add_dock_by_id(DOCK_ID, DOCK_TITLE, m_dock_widget);
 	}
 
 	QString m_store_base_dir;
