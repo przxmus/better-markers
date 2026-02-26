@@ -42,14 +42,8 @@ if(ENABLE_QT)
         "${CMAKE_CURRENT_SOURCE_DIR}/.deps/obs-deps-qt6-2025-07-11-universal/mkspecs/macx-clang"
         "${CMAKE_CURRENT_SOURCE_DIR}/.deps/obs-deps-qt6-2025-07-11-universal/include"
     )
-    target_link_options(
-      ${CMAKE_PROJECT_NAME}
-      PRIVATE "-F${QT_FRAMEWORK_DIR}" "-iframework${QT_FRAMEWORK_DIR}"
-    )
-    target_compile_options(
-      ${CMAKE_PROJECT_NAME}
-      PRIVATE "-F${QT_FRAMEWORK_DIR}" "-iframework${QT_FRAMEWORK_DIR}"
-    )
+    target_link_options(${CMAKE_PROJECT_NAME} PRIVATE "-F${QT_FRAMEWORK_DIR}" "-iframework${QT_FRAMEWORK_DIR}")
+    target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE "-F${QT_FRAMEWORK_DIR}" "-iframework${QT_FRAMEWORK_DIR}")
     target_link_libraries(
       ${CMAKE_PROJECT_NAME}
       PRIVATE "-framework QtCore" "-framework QtGui" "-framework QtNetwork" "-framework QtWidgets"
@@ -122,24 +116,15 @@ if(BUILD_TESTING AND ENABLE_QT)
   target_include_directories(better-markers-tests PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/src")
   target_compile_features(better-markers-tests PRIVATE cxx_std_17)
   if(APPLE)
-    target_compile_options(
-      better-markers-tests
-      PRIVATE -Wno-quoted-include-in-framework-header -Wno-comma
-    )
+    target_compile_options(better-markers-tests PRIVATE -Wno-quoted-include-in-framework-header -Wno-comma)
     target_include_directories(
       better-markers-tests
       PRIVATE
         "${QT_FRAMEWORK_DIR}/QtCore.framework/Headers"
         "${CMAKE_CURRENT_SOURCE_DIR}/.deps/obs-deps-qt6-2025-07-11-universal/include"
     )
-    target_link_options(
-      better-markers-tests
-      PRIVATE "-F${QT_FRAMEWORK_DIR}" "-iframework${QT_FRAMEWORK_DIR}"
-    )
-    target_compile_options(
-      better-markers-tests
-      PRIVATE "-F${QT_FRAMEWORK_DIR}" "-iframework${QT_FRAMEWORK_DIR}"
-    )
+    target_link_options(better-markers-tests PRIVATE "-F${QT_FRAMEWORK_DIR}" "-iframework${QT_FRAMEWORK_DIR}")
+    target_compile_options(better-markers-tests PRIVATE "-F${QT_FRAMEWORK_DIR}" "-iframework${QT_FRAMEWORK_DIR}")
     target_link_libraries(better-markers-tests PRIVATE "-framework QtCore")
   else()
     find_package(Qt6 COMPONENTS Core REQUIRED)
