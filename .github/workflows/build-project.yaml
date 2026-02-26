@@ -176,7 +176,8 @@ jobs:
           print "pluginName=${product_name}" >> $GITHUB_OUTPUT
           print "pluginVersion=${product_version}" >> $GITHUB_OUTPUT
 
-      - uses: actions/cache/restore@v4
+      - name: Restore ccache
+        uses: actions/cache/restore@v4
         id: ccache-cache
         with:
           path: ${{ github.workspace }}/.ccache
@@ -184,7 +185,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-ccache-
 
-      - uses: actions/cache/restore@v4
+      - name: Restore dependency cache
+        uses: actions/cache/restore@v4
         id: deps-cache
         with:
           path: ${{ github.workspace }}/.deps
@@ -241,14 +243,16 @@ jobs:
           name: ${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-macos-universal-${{ needs.check-event.outputs.commitHash }}-dSYMs
           path: ${{ github.workspace }}/release/${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-macos-universal-dSYMs.*
 
-      - uses: actions/cache/save@v4
-        if: github.event_name != 'pull_request' && steps.ccache-cache.outputs.cache-hit != 'true'
+      - name: Save ccache
+        uses: actions/cache/save@v4
+        if: ${{ always() && github.event_name != 'pull_request' && steps.ccache-cache.outputs.cache-hit != 'true' }}
         with:
           path: ${{ github.workspace }}/.ccache
           key: ${{ runner.os }}-ccache-${{ needs.check-event.outputs.config }}
 
-      - uses: actions/cache/save@v4
-        if: github.event_name != 'pull_request' && steps.deps-cache.outputs.cache-hit != 'true'
+      - name: Save dependency cache
+        uses: actions/cache/save@v4
+        if: ${{ always() && github.event_name != 'pull_request' && steps.deps-cache.outputs.cache-hit != 'true' }}
         with:
           path: ${{ github.workspace }}/.deps
           key: ${{ runner.os }}-deps-${{ hashFiles('buildspec.json', 'cmake/common/buildspec_common.cmake', 'cmake/macos/buildspec.cmake', 'cmake/windows/buildspec.cmake') }}
@@ -283,7 +287,8 @@ jobs:
           echo "pluginName=${product_name}" >> $GITHUB_OUTPUT
           echo "pluginVersion=${product_version}" >> $GITHUB_OUTPUT
 
-      - uses: actions/cache/restore@v4
+      - name: Restore ccache
+        uses: actions/cache/restore@v4
         id: ccache-cache
         with:
           path: ${{ github.workspace }}/.ccache
@@ -323,8 +328,9 @@ jobs:
           name: ${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-${{ matrix.os }}-x86_64-${{ needs.check-event.outputs.commitHash }}-dbgsym
           path: ${{ github.workspace }}/release/${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-x86_64*-dbgsym.ddeb
 
-      - uses: actions/cache/save@v4
-        if: github.event_name != 'pull_request' && steps.ccache-cache.outputs.cache-hit != 'true'
+      - name: Save ccache
+        uses: actions/cache/save@v4
+        if: ${{ always() && github.event_name != 'pull_request' && steps.ccache-cache.outputs.cache-hit != 'true' }}
         with:
           path: ${{ github.workspace }}/.ccache
           key: ${{ runner.os }}-${{ matrix.os }}-ccache-x86_64-${{ needs.check-event.outputs.config }}
@@ -359,7 +365,8 @@ jobs:
           "pluginName=${ProductName}" >> $env:GITHUB_OUTPUT
           "pluginVersion=${ProductVersion}" >> $env:GITHUB_OUTPUT
 
-      - uses: actions/cache/restore@v4
+      - name: Restore dependency cache
+        uses: actions/cache/restore@v4
         id: deps-cache
         with:
           path: ${{ github.workspace }}/.deps
@@ -386,8 +393,9 @@ jobs:
           name: ${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64-${{ needs.check-event.outputs.commitHash }}
           path: ${{ github.workspace }}/release/${{ steps.setup.outputs.pluginName }}-${{ steps.setup.outputs.pluginVersion }}-windows-x64*.*
 
-      - uses: actions/cache/save@v4
-        if: github.event_name != 'pull_request' && steps.deps-cache.outputs.cache-hit != 'true'
+      - name: Save dependency cache
+        uses: actions/cache/save@v4
+        if: ${{ always() && github.event_name != 'pull_request' && steps.deps-cache.outputs.cache-hit != 'true' }}
         with:
           path: ${{ github.workspace }}/.deps
           key: ${{ runner.os }}-deps-${{ hashFiles('buildspec.json', 'cmake/common/buildspec_common.cmake', 'cmake/macos/buildspec.cmake', 'cmake/windows/buildspec.cmake') }}
