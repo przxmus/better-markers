@@ -11,6 +11,7 @@
 #include <QHash>
 #include <QVector>
 
+#include <atomic>
 #include <mutex>
 
 class QWidget;
@@ -36,6 +37,7 @@ public:
 	void on_recording_file_changed(const QString &closed_file, const QString &next_file);
 	void on_recording_stopped(const QString &closed_file);
 	void retry_recovery_queue();
+	void set_shutting_down(bool shutting_down);
 
 private:
 	bool capture_pending_context(PendingMarkerContext *out_ctx, bool show_warning_ui) const;
@@ -65,6 +67,7 @@ private:
 	QVector<MarkerTemplate> m_active_templates;
 	QVector<MarkerExportSink *> m_export_sinks;
 	QHash<QString, QVector<MarkerRecord>> m_markers_by_file;
+	std::atomic_bool m_shutting_down{false};
 };
 
 } // namespace bm

@@ -7,8 +7,10 @@
 #include <util/platform.h>
 
 #include <QFile>
+#include <QCoreApplication>
 #include <QMetaObject>
 #include <QMessageBox>
+#include <QPointer>
 #include <QUuid>
 #include <QWidget>
 
@@ -137,6 +139,11 @@ void MarkerController::on_recording_stopped(const QString &closed_file)
 void MarkerController::retry_recovery_queue()
 {
 	m_premiere_xmp_sink.retry_recovery_queue();
+}
+
+void MarkerController::set_shutting_down(bool shutting_down)
+{
+	m_shutting_down.store(shutting_down);
 }
 
 bool MarkerController::capture_pending_context(PendingMarkerContext *out_ctx, bool show_warning_ui) const
@@ -295,12 +302,19 @@ bool MarkerController::dispatch_recording_closed(const MarkerExportRecordingCont
 
 void MarkerController::show_warning_async(const QString &message) const
 {
-	if (!m_parent_window)
+	if (m_shutting_down.load() || !m_parent_window)
 		return;
 
-	QMetaObject::invokeMethod(m_parent_window,
-				  [parent = m_parent_window, message]() {
-					  QMessageBox::warning(parent, bm_text("BetterMarkers.DockTitle"), message);
+	QCoreApplication *app = QCoreApplication::instance();
+	QPointer<QWidget> parent(m_parent_window);
+	if (!app || parent.isNull())
+		return;
+
+	QMetaObject::invokeMethod(app,
+				  [parent, message]() {
+					  if (parent.isNull())
+						  return;
+					  QMessageBox::warning(parent.data(), bm_text("BetterMarkers.DockTitle"), message);
 				  },
 				  Qt::QueuedConnection);
 }

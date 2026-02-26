@@ -31,6 +31,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QJsonObject>
 #include <QLabel>
 #include <QMainWindow>
+#include <QMetaObject>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
@@ -203,6 +204,7 @@ public:
 
 		QMainWindow *main_window = static_cast<QMainWindow *>(obs_frontend_get_main_window());
 		m_controller = std::make_unique<bm::MarkerController>(&m_store, &m_tracker, main_window, m_store_base_dir);
+		m_controller->set_shutting_down(false);
 		m_tracker.set_file_changed_callback([this](const QString &closed_file, const QString &next_file) {
 			if (m_controller)
 				m_controller->on_recording_file_changed(closed_file, next_file);
@@ -234,7 +236,8 @@ public:
 		m_settings_action = static_cast<QAction *>(
 			obs_frontend_add_tools_menu_qaction(bm::bm_text("BetterMarkers.SettingsMenu").toUtf8().constData()));
 		if (m_settings_action) {
-			QObject::connect(m_settings_action, &QAction::triggered, [this]() { show_settings_dialog(); });
+			m_settings_action_connection =
+				QObject::connect(m_settings_action, &QAction::triggered, [this]() { show_settings_dialog(); });
 		}
 
 		create_main_dock(main_window);
@@ -249,8 +252,14 @@ public:
 
 	void unload()
 	{
+		begin_shutdown();
 		obs_frontend_remove_save_callback(&BetterMarkersPlugin::on_frontend_save, this);
 		obs_frontend_remove_event_callback(&BetterMarkersPlugin::on_frontend_event, this);
+
+		if (m_settings_action_connection)
+			QObject::disconnect(m_settings_action_connection);
+		m_settings_action_connection = {};
+		m_settings_action = nullptr;
 
 		if (m_hotkeys)
 			m_hotkeys->shutdown();
@@ -265,12 +274,13 @@ public:
 
 		obs_frontend_remove_dock(DOCK_ID);
 		if (m_dock_widget)
-			m_dock_widget->deleteLater();
+			delete m_dock_widget;
 		m_dock_widget = nullptr;
 		if (m_update_check_reply) {
-			QObject::disconnect(m_update_check_reply, nullptr, nullptr, nullptr);
+			if (m_update_check_connection)
+				QObject::disconnect(m_update_check_connection);
+			m_update_check_connection = {};
 			m_update_check_reply->abort();
-			m_update_check_reply->deleteLater();
 			m_update_check_reply = nullptr;
 		}
 		m_update_network.reset();
@@ -317,6 +327,10 @@ private:
 	{
 		auto *self = static_cast<BetterMarkersPlugin *>(private_data);
 		self->m_tracker.handle_frontend_event(event);
+		if (event == OBS_FRONTEND_EVENT_EXIT || event == OBS_FRONTEND_EVENT_SCRIPTING_SHUTDOWN) {
+			self->begin_shutdown();
+			return;
+		}
 
 		if (event == OBS_FRONTEND_EVENT_PROFILE_CHANGING || event == OBS_FRONTEND_EVENT_SCENE_COLLECTION_CHANGING) {
 			if (self->m_hotkeys)
@@ -342,6 +356,9 @@ private:
 
 	void show_settings_dialog()
 	{
+		if (m_is_shutting_down)
+			return;
+
 		if (!m_settings_dialog) {
 			QMainWindow *main_window = static_cast<QMainWindow *>(obs_frontend_get_main_window());
 			m_settings_dialog = new bm::SettingsDialog(&m_store, main_window);
@@ -421,11 +438,16 @@ private:
 		request.setRawHeader("Accept", "application/vnd.github+json");
 		request.setRawHeader("User-Agent", QByteArray("better-markers/") + PLUGIN_VERSION);
 		m_update_check_reply = m_update_network->get(request);
-		QObject::connect(m_update_check_reply, &QNetworkReply::finished, [this]() {
+		m_update_check_connection = QObject::connect(m_update_check_reply, &QNetworkReply::finished, [this]() {
 			QNetworkReply *reply = m_update_check_reply;
 			m_update_check_reply = nullptr;
+			m_update_check_connection = {};
 			if (!reply)
 				return;
+			if (m_is_shutting_down) {
+				reply->deleteLater();
+				return;
+			}
 
 			if (reply->error() != QNetworkReply::NoError) {
 				obs_log(LOG_WARNING, "Better Markers update check failed: %s", reply->errorString().toUtf8().constData());
@@ -442,6 +464,9 @@ private:
 
 	void try_update_check_with_curl()
 	{
+		if (m_is_shutting_down)
+			return;
+
 		QByteArray payload;
 		QString error;
 		if (!fetch_latest_release_with_curl(&payload, &error)) {
@@ -454,6 +479,9 @@ private:
 
 	void apply_update_from_payload(const QByteArray &payload)
 	{
+		if (m_is_shutting_down)
+			return;
+
 		const std::optional<ReleaseDetails> release = parse_latest_release_payload(payload);
 		if (!release.has_value())
 			return;
@@ -475,6 +503,9 @@ private:
 
 	void show_update_available_dialog(const QString &latest_tag, const QString &release_url)
 	{
+		if (m_is_shutting_down)
+			return;
+
 		QWidget *parent = static_cast<QWidget *>(obs_frontend_get_main_window());
 		QDialog dialog(parent);
 		dialog.setWindowTitle(bm::bm_text("BetterMarkers.Update.Title"));
@@ -515,6 +546,17 @@ private:
 			QDesktopServices::openUrl(QUrl(release_url));
 	}
 
+	void begin_shutdown()
+	{
+		if (m_is_shutting_down)
+			return;
+		m_is_shutting_down = true;
+		if (m_controller)
+			m_controller->set_shutting_down(true);
+		if (m_settings_dialog)
+			m_settings_dialog->hide();
+	}
+
 	QString m_store_base_dir;
 	bm::ScopeStore m_store;
 	bm::RecordingSessionTracker m_tracker;
@@ -524,8 +566,11 @@ private:
 	QNetworkReply *m_update_check_reply = nullptr;
 	bool m_has_update_available = false;
 	QString m_latest_release_url;
+	bool m_is_shutting_down = false;
 
 	QAction *m_settings_action = nullptr;
+	QMetaObject::Connection m_settings_action_connection;
+	QMetaObject::Connection m_update_check_connection;
 	QWidget *m_dock_widget = nullptr;
 	bm::SettingsDialog *m_settings_dialog = nullptr;
 };
