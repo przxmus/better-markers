@@ -94,7 +94,6 @@ jobs:
   build-linux:
     name: Build Linux (Optional) 🧱
     needs: prepare-release
-    continue-on-error: true
     uses: ./.github/workflows/build-project.yaml
     with:
       package: 'true'
