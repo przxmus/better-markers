@@ -43,6 +43,7 @@ set(
   \\.github/
   \\.gitignore
   \\.ccache/
+  \\.apt-cache/
   \\.deps/
   build_.*
   cmake/\\.CMakeBuildNumber
