@@ -13,6 +13,9 @@
 #include <QListWidget>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QCheckBox>
+#include <QGroupBox>
+#include <QSignalBlocker>
 #include <QVBoxLayout>
 
 namespace bm {
@@ -39,6 +42,30 @@ SettingsDialog::SettingsDialog(ScopeStore *store, QWidget *parent) : QDialog(par
 	setMinimumSize(760, 520);
 
 	auto *main_layout = new QVBoxLayout(this);
+	auto *export_targets_group = new QGroupBox(bm_text("BetterMarkers.Settings.ExportTargets"), this);
+	auto *export_targets_layout = new QVBoxLayout(export_targets_group);
+
+	m_premiere_toggle = new QCheckBox(bm_text("BetterMarkers.Settings.ExportPremiereLabel"), export_targets_group);
+	export_targets_layout->addWidget(m_premiere_toggle);
+	export_targets_layout->addWidget(new QLabel(bm_text("BetterMarkers.Settings.ExportPremiereHint"), export_targets_group));
+
+	m_resolve_toggle = new QCheckBox(bm_text("BetterMarkers.Settings.ExportResolveLabel"), export_targets_group);
+	export_targets_layout->addWidget(m_resolve_toggle);
+	export_targets_layout->addWidget(new QLabel(bm_text("BetterMarkers.Settings.ExportResolveHint"), export_targets_group));
+
+	m_final_cut_toggle = new QCheckBox(bm_text("BetterMarkers.Settings.ExportFinalCutLabel"), export_targets_group);
+	export_targets_layout->addWidget(m_final_cut_toggle);
+	export_targets_layout->addWidget(new QLabel(bm_text("BetterMarkers.Settings.ExportFinalCutHint"), export_targets_group));
+
+#ifdef __APPLE__
+	m_final_cut_platform_hint = nullptr;
+#else
+	m_final_cut_toggle->setEnabled(false);
+	m_final_cut_platform_hint = new QLabel(bm_text("BetterMarkers.Settings.ExportFinalCutUnavailable"), export_targets_group);
+	export_targets_layout->addWidget(m_final_cut_platform_hint);
+#endif
+	main_layout->addWidget(export_targets_group);
+
 	main_layout->addWidget(new QLabel(bm_text("BetterMarkers.Settings.MarkerTemplates"), this));
 
 	m_template_list = new QListWidget(this);
@@ -63,6 +90,9 @@ SettingsDialog::SettingsDialog(ScopeStore *store, QWidget *parent) : QDialog(par
 	connect(m_delete_button, &QPushButton::clicked, this, [this]() { delete_template(); });
 	connect(close_btn, &QPushButton::clicked, this, &QDialog::hide);
 	connect(m_template_list, &QListWidget::itemSelectionChanged, this, [this]() { on_selection_changed(); });
+	connect(m_premiere_toggle, &QCheckBox::checkStateChanged, this, [this]() { update_export_profile_from_ui(); });
+	connect(m_resolve_toggle, &QCheckBox::checkStateChanged, this, [this]() { update_export_profile_from_ui(); });
+	connect(m_final_cut_toggle, &QCheckBox::checkStateChanged, this, [this]() { update_export_profile_from_ui(); });
 
 	refresh();
 	on_selection_changed();
@@ -75,6 +105,20 @@ void SettingsDialog::set_persist_callback(PersistCallback callback)
 
 void SettingsDialog::refresh()
 {
+	const ExportProfile profile = m_store->export_profile();
+	{
+		QSignalBlocker block_premiere(m_premiere_toggle);
+		m_premiere_toggle->setChecked(profile.enable_premiere_xmp);
+	}
+	{
+		QSignalBlocker block_resolve(m_resolve_toggle);
+		m_resolve_toggle->setChecked(profile.enable_resolve_fcpxml);
+	}
+	{
+		QSignalBlocker block_final_cut(m_final_cut_toggle);
+		m_final_cut_toggle->setChecked(profile.enable_final_cut_fcpxml);
+	}
+
 	m_template_list->clear();
 	const ScopedStoreData &global_store = m_store->for_scope(TemplateScope::Global);
 	for (int i = 0; i < global_store.templates.size(); ++i) {
@@ -88,6 +132,21 @@ void SettingsDialog::refresh()
 		auto *item = new QListWidgetItem(text, m_template_list);
 		item->setData(Qt::UserRole, i);
 	}
+}
+
+void SettingsDialog::update_export_profile_from_ui()
+{
+	ExportProfile &profile = m_store->export_profile();
+	profile.enable_premiere_xmp = m_premiere_toggle && m_premiere_toggle->isChecked();
+	profile.enable_resolve_fcpxml = m_resolve_toggle && m_resolve_toggle->isChecked();
+#ifdef __APPLE__
+	profile.enable_final_cut_fcpxml = m_final_cut_toggle && m_final_cut_toggle->isChecked();
+#else
+	profile.enable_final_cut_fcpxml = false;
+#endif
+
+	if (m_persist_callback)
+		m_persist_callback();
 }
 
 void SettingsDialog::add_template()

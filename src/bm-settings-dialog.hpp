@@ -7,6 +7,8 @@
 #include <functional>
 
 class QListWidget;
+class QCheckBox;
+class QLabel;
 class QPushButton;
 
 namespace bm {
@@ -25,6 +27,7 @@ private:
 	void edit_template();
 	void delete_template();
 	void on_selection_changed();
+	void update_export_profile_from_ui();
 	QStringList available_profiles() const;
 	QStringList available_scene_collections() const;
 
@@ -37,6 +40,10 @@ private:
 	ScopeStore *m_store = nullptr;
 	PersistCallback m_persist_callback;
 	QListWidget *m_template_list = nullptr;
+	QCheckBox *m_premiere_toggle = nullptr;
+	QCheckBox *m_resolve_toggle = nullptr;
+	QCheckBox *m_final_cut_toggle = nullptr;
+	QLabel *m_final_cut_platform_hint = nullptr;
 	QPushButton *m_edit_button = nullptr;
 	QPushButton *m_delete_button = nullptr;
 };
