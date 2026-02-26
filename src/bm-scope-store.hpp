@@ -27,6 +27,8 @@ public:
 	const ScopedStoreData &for_scope(TemplateScope scope) const;
 
 	QVector<MarkerTemplate> merged_templates() const;
+	ExportProfile &export_profile();
+	const ExportProfile &export_profile() const;
 
 	QString global_store_path() const;
 	QString profile_store_path() const;
@@ -43,6 +45,7 @@ private:
 	ScopedStoreData m_global;
 	ScopedStoreData m_profile;
 	ScopedStoreData m_scene;
+	ExportProfile m_export_profile;
 };
 
 } // namespace bm

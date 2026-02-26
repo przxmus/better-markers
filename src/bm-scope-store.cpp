@@ -69,12 +69,15 @@ bool ScopeStore::load_global()
 		return false;
 
 	m_global = scoped_store_from_json(json_obj);
+	m_export_profile = export_profile_from_json(json_obj.value("exportProfile").toObject());
 	return true;
 }
 
 bool ScopeStore::save_global() const
 {
-	return write_json_file(global_store_path(), scoped_store_to_json(m_global));
+	QJsonObject root = scoped_store_to_json(m_global);
+	root.insert("exportProfile", export_profile_to_json(m_export_profile));
+	return write_json_file(global_store_path(), root);
 }
 
 bool ScopeStore::load_profile()
@@ -152,6 +155,16 @@ QVector<MarkerTemplate> ScopeStore::merged_templates() const
 	}
 
 	return templates;
+}
+
+ExportProfile &ScopeStore::export_profile()
+{
+	return m_export_profile;
+}
+
+const ExportProfile &ScopeStore::export_profile() const
+{
+	return m_export_profile;
 }
 
 QString ScopeStore::global_store_path() const

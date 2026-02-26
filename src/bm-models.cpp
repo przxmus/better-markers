@@ -90,4 +90,60 @@ ScopedStoreData scoped_store_from_json(const QJsonObject &json_obj)
 	return store;
 }
 
+const char *resolve_export_mode_to_key(ResolveExportMode mode)
+{
+	switch (mode) {
+	case ResolveExportMode::TimelineMarkers:
+	default:
+		return "timeline_markers";
+	}
+}
+
+ResolveExportMode resolve_export_mode_from_key(const QString &mode_key)
+{
+	if (mode_key == "timeline_markers")
+		return ResolveExportMode::TimelineMarkers;
+	return ResolveExportMode::TimelineMarkers;
+}
+
+const char *export_write_cadence_to_key(ExportWriteCadence cadence)
+{
+	switch (cadence) {
+	case ExportWriteCadence::Immediate:
+	default:
+		return "immediate";
+	}
+}
+
+ExportWriteCadence export_write_cadence_from_key(const QString &cadence_key)
+{
+	if (cadence_key == "immediate")
+		return ExportWriteCadence::Immediate;
+	return ExportWriteCadence::Immediate;
+}
+
+QJsonObject export_profile_to_json(const ExportProfile &profile)
+{
+	QJsonObject json_obj;
+	json_obj.insert("enablePremiereXmp", profile.enable_premiere_xmp);
+	json_obj.insert("enableResolveFcpxml", profile.enable_resolve_fcpxml);
+	json_obj.insert("enableFinalCutFcpxml", profile.enable_final_cut_fcpxml);
+	json_obj.insert("resolveMode", resolve_export_mode_to_key(profile.resolve_mode));
+	json_obj.insert("writeCadence", export_write_cadence_to_key(profile.write_cadence));
+	return json_obj;
+}
+
+ExportProfile export_profile_from_json(const QJsonObject &json_obj)
+{
+	ExportProfile profile;
+	if (!json_obj.isEmpty()) {
+		profile.enable_premiere_xmp = json_obj.value("enablePremiereXmp").toBool(true);
+		profile.enable_resolve_fcpxml = json_obj.value("enableResolveFcpxml").toBool(false);
+		profile.enable_final_cut_fcpxml = json_obj.value("enableFinalCutFcpxml").toBool(false);
+		profile.resolve_mode = resolve_export_mode_from_key(json_obj.value("resolveMode").toString("timeline_markers"));
+		profile.write_cadence = export_write_cadence_from_key(json_obj.value("writeCadence").toString("immediate"));
+	}
+	return profile;
+}
+
 } // namespace bm
