@@ -33,6 +33,8 @@ public:
 	void set_skipped_update_tag(const QString &tag);
 	bool auto_focus_marker_dialog() const;
 	void set_auto_focus_marker_dialog(bool enabled);
+	bool pause_recording_during_marker_dialog() const;
+	void set_pause_recording_during_marker_dialog(bool enabled);
 
 	QString global_store_path() const;
 	QString profile_store_path() const;
@@ -53,6 +55,7 @@ private:
 	ExportProfile m_export_profile;
 	QString m_skipped_update_tag;
 	bool m_auto_focus_marker_dialog = true;
+	bool m_pause_recording_during_marker_dialog = true;
 };
 
 } // namespace bm

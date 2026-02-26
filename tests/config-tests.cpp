@@ -80,6 +80,8 @@ void test_scope_store_migration_defaults()
 		"migrated global store has empty skipped tag");
 	require(doc.object().value("autoFocusMarkerDialog").toBool(false),
 		"migrated global store has autofocus enabled");
+	require(doc.object().value("pauseRecordingDuringMarkerDialog").toBool(false),
+		"migrated global store has pause-during-dialog enabled");
 }
 
 void test_scope_store_skipped_update_tag_persistence()
@@ -120,6 +122,25 @@ void test_scope_store_auto_focus_persistence()
 	require(!reloaded.auto_focus_marker_dialog(), "persisted auto focus value matches");
 }
 
+void test_scope_store_pause_recording_during_dialog_persistence()
+{
+	QTemporaryDir temp_dir;
+	require(temp_dir.isValid(), "temporary directory created for pause during dialog");
+
+	bm::ScopeStore store;
+	store.set_base_dir(temp_dir.path());
+	require(store.load_global(), "load empty global store for pause during dialog");
+	require(store.pause_recording_during_marker_dialog(), "default pause during dialog is enabled");
+
+	store.set_pause_recording_during_marker_dialog(false);
+	require(store.save_global(), "save global store with pause during dialog disabled");
+
+	bm::ScopeStore reloaded;
+	reloaded.set_base_dir(temp_dir.path());
+	require(reloaded.load_global(), "reload global store with pause during dialog disabled");
+	require(!reloaded.pause_recording_during_marker_dialog(), "persisted pause during dialog value matches");
+}
+
 void test_focus_policy_hotkey_scope()
 {
 	require(!bm::should_use_hotkey_focus_session(false, true, true), "focus session disabled when auto focus off");
@@ -146,6 +167,7 @@ void run_config_tests()
 	test_scope_store_migration_defaults();
 	test_scope_store_skipped_update_tag_persistence();
 	test_scope_store_auto_focus_persistence();
+	test_scope_store_pause_recording_during_dialog_persistence();
 	test_focus_policy_hotkey_scope();
 	test_focus_policy_restore_condition();
 }
