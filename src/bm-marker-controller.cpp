@@ -5,6 +5,8 @@
 #include "bm-marker-dialog.hpp"
 #include "bm-window-focus.hpp"
 
+#include <obs-frontend-api.h>
+#include <obs.h>
 #include <util/base.h>
 #include <util/platform.h>
 
@@ -75,7 +77,63 @@ private:
 	bool m_acquired = false;
 };
 
-} // namespace
+class DialogRecordingPauseSession {
+public:
+	explicit DialogRecordingPauseSession(const ScopeStore *store)
+	{
+		m_enabled = store && store->pause_recording_during_marker_dialog();
+	}
+
+	~DialogRecordingPauseSession()
+	{
+		resume_if_needed();
+	}
+
+	void pause_if_needed()
+	{
+		if (!m_enabled || m_pause_attempted)
+			return;
+		m_pause_attempted = true;
+
+		if (!obs_frontend_recording_active() || obs_frontend_recording_paused())
+			return;
+
+		obs_output_t *output = obs_frontend_get_recording_output();
+		if (!output || !obs_output_can_pause(output)) {
+			blog(LOG_DEBUG, "[better-markers] auto-pause skipped: recording output cannot be paused");
+			return;
+		}
+
+		obs_frontend_recording_pause(true);
+		m_paused_by_plugin = obs_frontend_recording_paused();
+		if (!m_paused_by_plugin)
+			blog(LOG_DEBUG, "[better-markers] auto-pause request resulted in no-op");
+	}
+
+	void resume_if_needed()
+	{
+		if (m_resume_attempted)
+			return;
+		m_resume_attempted = true;
+
+		if (!m_paused_by_plugin)
+			return;
+		if (!obs_frontend_recording_active() || !obs_frontend_recording_paused())
+			return;
+
+		obs_frontend_recording_pause(false);
+		if (obs_frontend_recording_paused())
+			blog(LOG_DEBUG, "[better-markers] auto-unpause request resulted in no-op");
+	}
+
+private:
+	bool m_enabled = false;
+	bool m_pause_attempted = false;
+	bool m_resume_attempted = false;
+	bool m_paused_by_plugin = false;
+};
+
+	} // namespace
 
 MarkerController::MarkerController(ScopeStore *store, RecordingSessionTracker *tracker, QWidget *parent_window,
 				   const QString &base_store_dir)
@@ -127,8 +185,13 @@ void MarkerController::add_marker_from_main_button()
 
 	MarkerDialog dialog(templates, MarkerDialog::Mode::ChooseTemplate, QString(), m_parent_window);
 	prepare_marker_dialog(&dialog);
-	if (dialog.exec() != QDialog::Accepted)
+	DialogRecordingPauseSession pause_session(m_store);
+	pause_session.pause_if_needed();
+	if (dialog.exec() != QDialog::Accepted) {
+		pause_session.resume_if_needed();
 		return;
+	}
+	pause_session.resume_if_needed();
 
 	const MarkerRecord marker =
 		marker_from_inputs(ctx, dialog.marker_title(), dialog.marker_description(), dialog.marker_color_id());
@@ -153,11 +216,14 @@ void MarkerController::add_marker_from_template_hotkey(const MarkerTemplate &tem
 		}
 
 		HotkeyDialogFocusSession focus_session(m_store);
+		DialogRecordingPauseSession pause_session(m_store);
 		QVector<MarkerTemplate> templates{templ};
 		MarkerDialog dialog(templates, MarkerDialog::Mode::FixedTemplate, templ.id, m_parent_window);
 		focus_session.prepare_dialog(&dialog);
+		pause_session.pause_if_needed();
 		if (dialog.exec() != QDialog::Accepted) {
 			focus_session.restore();
+			pause_session.resume_if_needed();
 			return;
 		}
 
@@ -165,6 +231,7 @@ void MarkerController::add_marker_from_template_hotkey(const MarkerTemplate &tem
 		description = dialog.marker_description();
 		color_id = dialog.marker_color_id();
 		focus_session.restore();
+		pause_session.resume_if_needed();
 	}
 
 	const MarkerRecord marker = marker_from_inputs(ctx, title, description, color_id);
@@ -194,17 +261,21 @@ void MarkerController::quick_custom_marker()
 	}
 
 	HotkeyDialogFocusSession focus_session(m_store);
+	DialogRecordingPauseSession pause_session(m_store);
 	QVector<MarkerTemplate> none;
 	MarkerDialog dialog(none, MarkerDialog::Mode::NoTemplate, QString(), m_parent_window);
 	focus_session.prepare_dialog(&dialog);
+	pause_session.pause_if_needed();
 	if (dialog.exec() != QDialog::Accepted) {
 		focus_session.restore();
+		pause_session.resume_if_needed();
 		return;
 	}
 
 	const MarkerRecord marker =
 		marker_from_inputs(ctx, dialog.marker_title(), dialog.marker_description(), dialog.marker_color_id());
 	focus_session.restore();
+	pause_session.resume_if_needed();
 	append_marker(ctx.media_path, marker);
 }
 
