@@ -63,9 +63,10 @@ The plugin works only while recording is active (not paused) and writes artifact
 
 ## Final Code Formatting Gate
 
-- Before finishing any task, always run `clang-format-19` and `gersemi` on changed code.
-- These tools are the baseline for GitHub Actions validation, so code must always pass both checks.
-- If either tool reports issues, fix the code and rerun checks until everything is clean.
+- Run `clang-format-19` and `gersemi` only after the full implementation is complete.
+- Do not run these checks on every partial change or on every commit.
+- Treat this as a final gate before handing off completed work.
+- If either tool reports issues, fix the code and rerun checks until both are clean.
 
 ## Localization Maintenance
 
