@@ -71,6 +71,7 @@ bool ScopeStore::load_global()
 	m_global = scoped_store_from_json(json_obj);
 	m_export_profile = export_profile_from_json(json_obj.value("exportProfile").toObject());
 	m_skipped_update_tag = json_obj.value("skippedUpdateTag").toString();
+	m_auto_focus_marker_dialog = json_obj.value("autoFocusMarkerDialog").toBool(true);
 	return true;
 }
 
@@ -79,6 +80,7 @@ bool ScopeStore::save_global() const
 	QJsonObject root = scoped_store_to_json(m_global);
 	root.insert("exportProfile", export_profile_to_json(m_export_profile));
 	root.insert("skippedUpdateTag", m_skipped_update_tag);
+	root.insert("autoFocusMarkerDialog", m_auto_focus_marker_dialog);
 	return write_json_file(global_store_path(), root);
 }
 
@@ -177,6 +179,16 @@ QString ScopeStore::skipped_update_tag() const
 void ScopeStore::set_skipped_update_tag(const QString &tag)
 {
 	m_skipped_update_tag = tag.trimmed();
+}
+
+bool ScopeStore::auto_focus_marker_dialog() const
+{
+	return m_auto_focus_marker_dialog;
+}
+
+void ScopeStore::set_auto_focus_marker_dialog(bool enabled)
+{
+	m_auto_focus_marker_dialog = enabled;
 }
 
 QString ScopeStore::global_store_path() const
