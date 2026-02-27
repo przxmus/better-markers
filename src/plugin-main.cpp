@@ -20,6 +20,7 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <obs-module.h>
 #include <plugin-support.h>
 #include <util/base.h>
+#include <util/platform.h>
 
 #include <curl/curl.h>
 
@@ -192,6 +193,9 @@ class BetterMarkersPlugin {
 public:
 	bool load()
 	{
+		const uint64_t load_begin_ns = os_gettime_ns();
+		obs_log(LOG_INFO, "[better-markers] plugin load begin");
+
 		char *config_path = obs_module_config_path("stores");
 		if (!config_path)
 			return false;
@@ -231,6 +235,9 @@ public:
 					m_controller->add_marker_from_template_hotkey(templ);
 			});
 		m_hotkeys->initialize();
+		const uint64_t after_controller_init_ns = os_gettime_ns();
+		obs_log(LOG_INFO, "[better-markers] plugin load phase ready: stores/controller/hotkeys initialized (%llu ms)",
+			static_cast<unsigned long long>((after_controller_init_ns - load_begin_ns) / 1000000ULL));
 
 		obs_frontend_add_save_callback(&BetterMarkersPlugin::on_frontend_save, this);
 		obs_frontend_add_event_callback(&BetterMarkersPlugin::on_frontend_event, this);
@@ -247,8 +254,14 @@ public:
 		m_tracker.sync_from_frontend_state();
 		m_controller->retry_recovery_queue();
 		check_for_updates_on_startup();
+		const uint64_t after_startup_tasks_ns = os_gettime_ns();
+		obs_log(LOG_INFO, "[better-markers] plugin load phase ready: startup tasks scheduled/completed (%llu ms)",
+			static_cast<unsigned long long>((after_startup_tasks_ns - load_begin_ns) / 1000000ULL));
 
 		obs_log(LOG_INFO, "plugin loaded successfully (version %s)", PLUGIN_VERSION);
+		const uint64_t load_end_ns = os_gettime_ns();
+		obs_log(LOG_INFO, "[better-markers] plugin load complete (%llu ms)",
+			static_cast<unsigned long long>((load_end_ns - load_begin_ns) / 1000000ULL));
 		return true;
 	}
 

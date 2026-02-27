@@ -6,6 +6,7 @@
 #include "bm-xmp-sidecar-writer.hpp"
 
 #include <util/base.h>
+#include <util/platform.h>
 
 #include <QFile>
 
@@ -85,27 +86,57 @@ inline bool PremiereXmpSink::on_recording_closed(const MarkerExportRecordingCont
 
 inline void PremiereXmpSink::retry_recovery_queue()
 {
+	const uint64_t begin_ns = os_gettime_ns();
 	const QVector<PendingEmbedJob> jobs = m_recovery.jobs();
+	blog(LOG_INFO, "[better-markers][%s] startup recovery begin: jobs=%d", sink_name().toUtf8().constData(),
+	     jobs.size());
 	for (const PendingEmbedJob &job : jobs) {
+		const uint64_t job_begin_ns = os_gettime_ns();
 		if (!QFile::exists(job.media_path))
+		{
+			blog(LOG_INFO, "[better-markers][%s] startup recovery skip: missing media '%s' (%llu ms)",
+			     sink_name().toUtf8().constData(), job.media_path.toUtf8().constData(),
+			     static_cast<unsigned long long>((os_gettime_ns() - job_begin_ns) / 1000000ULL));
 			continue;
+		}
 		if (!is_mp4_or_mov_path(job.media_path))
+		{
+			blog(LOG_INFO, "[better-markers][%s] startup recovery skip: unsupported extension '%s' (%llu ms)",
+			     sink_name().toUtf8().constData(), job.media_path.toUtf8().constData(),
+			     static_cast<unsigned long long>((os_gettime_ns() - job_begin_ns) / 1000000ULL));
 			continue;
+		}
 
 		const QString sidecar = XmpSidecarWriter::sidecar_path_for_media(job.media_path);
 		if (!QFile::exists(sidecar))
+		{
+			blog(LOG_INFO, "[better-markers][%s] startup recovery skip: missing sidecar '%s' (%llu ms)",
+			     sink_name().toUtf8().constData(), sidecar.toUtf8().constData(),
+			     static_cast<unsigned long long>((os_gettime_ns() - job_begin_ns) / 1000000ULL));
 			continue;
+		}
 
 		const EmbedResult result = m_embed_engine.embed_from_sidecar_with_retry(job.media_path, sidecar,
 											kRecoveryRetryAttempts,
 											kRecoveryRetryInitialDelayMs,
 											kRecoveryRetryMaxDelayMs);
 		if (result.ok)
+		{
+			blog(LOG_INFO, "[better-markers][%s] startup recovery success: '%s' (%llu ms)",
+			     sink_name().toUtf8().constData(), job.media_path.toUtf8().constData(),
+			     static_cast<unsigned long long>((os_gettime_ns() - job_begin_ns) / 1000000ULL));
 			m_recovery.remove(job.media_path);
-		else
+		} else {
+			blog(LOG_WARNING, "[better-markers][%s] startup recovery failed: '%s' error='%s' (%llu ms)",
+			     sink_name().toUtf8().constData(), job.media_path.toUtf8().constData(),
+			     result.error.toUtf8().constData(),
+			     static_cast<unsigned long long>((os_gettime_ns() - job_begin_ns) / 1000000ULL));
 			m_recovery.upsert(job.media_path, result.error);
+		}
 	}
 	m_recovery.save();
+	blog(LOG_INFO, "[better-markers][%s] startup recovery complete (%llu ms)", sink_name().toUtf8().constData(),
+	     static_cast<unsigned long long>((os_gettime_ns() - begin_ns) / 1000000ULL));
 }
 
 } // namespace bm
