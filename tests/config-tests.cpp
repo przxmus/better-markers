@@ -1,7 +1,10 @@
 #include "bm-focus-policy.hpp"
 #include "bm-scope-store.hpp"
+#include "bm-startup-recovery-policy.hpp"
 
 #include <QFile>
+#include <QFileInfo>
+#include <QDir>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
@@ -223,6 +226,64 @@ void test_focus_policy_restore_condition()
 	require(bm::should_restore_focus_after_dialog(true, true), "restore enabled for active executed dialog");
 }
 
+void test_startup_recovery_drops_stale_jobs()
+{
+	QTemporaryDir temp_dir;
+	require(temp_dir.isValid(), "temporary directory created for startup recovery stale job test");
+
+	const bm::StartupRecoveryDecision missing_media =
+		bm::decide_startup_recovery(temp_dir.path() + "/missing-recording.mp4");
+	require(missing_media.action == bm::StartupRecoveryAction::DropMissingMedia,
+		"missing media should be dropped");
+
+	const QString unsupported_path = temp_dir.path() + "/recording.mkv";
+	{
+		QFile unsupported_file(unsupported_path);
+		require(unsupported_file.open(QIODevice::WriteOnly | QIODevice::Truncate),
+			"create unsupported extension media");
+		require(unsupported_file.write("stub") == 4, "write unsupported extension media");
+	}
+	const bm::StartupRecoveryDecision unsupported = bm::decide_startup_recovery(unsupported_path);
+	require(unsupported.action == bm::StartupRecoveryAction::DropUnsupportedMedia,
+		"unsupported extension should be dropped");
+
+	const QString missing_sidecar_media = temp_dir.path() + "/recording.mp4";
+	{
+		QFile media_file(missing_sidecar_media);
+		require(media_file.open(QIODevice::WriteOnly | QIODevice::Truncate), "create mp4 without sidecar");
+		require(media_file.write("stub") == 4, "write mp4 without sidecar");
+	}
+	const bm::StartupRecoveryDecision missing_sidecar = bm::decide_startup_recovery(missing_sidecar_media);
+	require(missing_sidecar.action == bm::StartupRecoveryAction::DropMissingSidecar,
+		"missing sidecar should be dropped");
+}
+
+void test_startup_recovery_retries_once()
+{
+	QTemporaryDir temp_dir;
+	require(temp_dir.isValid(), "temporary directory created for startup recovery retry policy test");
+
+	const QString media_path = temp_dir.path() + "/recording.mov";
+	{
+		QFile media_file(media_path);
+		require(media_file.open(QIODevice::WriteOnly | QIODevice::Truncate), "create mov with sidecar");
+		require(media_file.write("stub") == 4, "write mov with sidecar");
+	}
+
+	const QFileInfo info(media_path);
+	const QString sidecar_path = info.dir().filePath(info.completeBaseName() + ".xmp");
+	{
+		QFile sidecar_file(sidecar_path);
+		require(sidecar_file.open(QIODevice::WriteOnly | QIODevice::Truncate), "create sidecar for startup retry");
+		require(sidecar_file.write("<xmp/>") == 6, "write sidecar for startup retry");
+	}
+
+	const bm::StartupRecoveryDecision decision = bm::decide_startup_recovery(media_path);
+	require(decision.action == bm::StartupRecoveryAction::RetryOnce, "valid job should be retried");
+	require(decision.sidecar_path == sidecar_path, "startup retry sidecar path should match");
+	require(bm::startup_recovery_retry_attempts() == 1, "startup retry attempts should be exactly one");
+}
+
 } // namespace
 
 void run_config_tests()
@@ -238,4 +299,6 @@ void run_config_tests()
 	test_scope_store_synthetic_keypress_empty_values();
 	test_focus_policy_hotkey_scope();
 	test_focus_policy_restore_condition();
+	test_startup_recovery_drops_stale_jobs();
+	test_startup_recovery_retries_once();
 }

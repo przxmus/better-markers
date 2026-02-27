@@ -1,9 +1,10 @@
 #pragma once
 
 #include "bm-marker-data.hpp"
-#include "bm-xmp-sidecar-writer.hpp"
 
+#include <QDir>
 #include <QFile>
+#include <QFileInfo>
 #include <QString>
 
 namespace bm {
@@ -33,7 +34,8 @@ inline StartupRecoveryDecision decide_startup_recovery(const QString &media_path
 	if (!is_mp4_or_mov_path(media_path))
 		return {StartupRecoveryAction::DropUnsupportedMedia, {}};
 
-	const QString sidecar_path = XmpSidecarWriter::sidecar_path_for_media(media_path);
+	const QFileInfo info(media_path);
+	const QString sidecar_path = info.dir().filePath(info.completeBaseName() + ".xmp");
 	if (!QFile::exists(sidecar_path))
 		return {StartupRecoveryAction::DropMissingSidecar, sidecar_path};
 

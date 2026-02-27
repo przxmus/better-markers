@@ -171,8 +171,8 @@ inline void PremiereXmpSink::run_startup_recovery_worker()
 		std::lock_guard<std::mutex> lock(m_recovery_mutex);
 		jobs = m_recovery.jobs();
 	}
-	blog(LOG_INFO, "[better-markers][%s] startup recovery begin: jobs=%d", sink_name().toUtf8().constData(),
-	     jobs.size());
+	blog(LOG_INFO, "[better-markers][%s] startup recovery begin: jobs=%lld", sink_name().toUtf8().constData(),
+	     static_cast<long long>(jobs.size()));
 
 	for (const PendingEmbedJob &job : jobs) {
 		if (m_stop_startup_recovery.load())
