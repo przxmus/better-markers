@@ -81,7 +81,7 @@ For recording file `<name>.mp4` or `<name>.mov`, Better Markers creates:
 
 - Premiere:
   - `<name>.xmp`
-  - Marker embed is applied automatically to MP4/MOV when recording closes
+  - Marker embed is applied automatically to MP4/MOV when recording closes (uses `exiftool` when available, otherwise built-in embed logic)
 - Final Cut Pro (macOS):
   - `<name>.better-markers.fcp.fcpxml`
 - DaVinci Resolve:
