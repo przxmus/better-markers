@@ -398,14 +398,21 @@ void MarkerController::on_recording_stopped(const QString &closed_file)
 	finalize_closed_file(closed_file);
 }
 
-void MarkerController::retry_recovery_queue()
+void MarkerController::start_recovery_queue_async()
 {
-	m_premiere_xmp_sink.retry_recovery_queue();
+	m_premiere_xmp_sink.start_startup_recovery_async();
+}
+
+void MarkerController::stop_recovery_queue()
+{
+	m_premiere_xmp_sink.stop_startup_recovery();
 }
 
 void MarkerController::set_shutting_down(bool shutting_down)
 {
 	m_shutting_down.store(shutting_down);
+	if (shutting_down)
+		stop_recovery_queue();
 }
 
 bool MarkerController::capture_pending_context(PendingMarkerContext *out_ctx, bool show_warning_ui) const

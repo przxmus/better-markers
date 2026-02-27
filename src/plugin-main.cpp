@@ -252,7 +252,7 @@ public:
 		create_main_dock(main_window);
 		refresh_runtime_bindings();
 		m_tracker.sync_from_frontend_state();
-		m_controller->retry_recovery_queue();
+		m_controller->start_recovery_queue_async();
 		check_for_updates_on_startup();
 		const uint64_t after_startup_tasks_ns = os_gettime_ns();
 		obs_log(LOG_INFO, "[better-markers] plugin load phase ready: startup tasks scheduled/completed (%llu ms)",

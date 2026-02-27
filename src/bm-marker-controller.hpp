@@ -36,7 +36,8 @@ public:
 
 	void on_recording_file_changed(const QString &closed_file, const QString &next_file);
 	void on_recording_stopped(const QString &closed_file);
-	void retry_recovery_queue();
+	void start_recovery_queue_async();
+	void stop_recovery_queue();
 	void set_shutting_down(bool shutting_down);
 
 private:
