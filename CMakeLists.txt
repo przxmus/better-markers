@@ -44,11 +44,17 @@ if(ENABLE_QT)
     )
     target_link_options(${CMAKE_PROJECT_NAME} PRIVATE "-F${QT_FRAMEWORK_DIR}" "-iframework${QT_FRAMEWORK_DIR}")
     target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE "-F${QT_FRAMEWORK_DIR}" "-iframework${QT_FRAMEWORK_DIR}")
-    target_link_libraries(
-      ${CMAKE_PROJECT_NAME}
-      PRIVATE "-framework QtCore" "-framework QtGui" "-framework QtNetwork" "-framework QtWidgets" "-framework AppKit"
-    )
-  else()
+	    target_link_libraries(
+	      ${CMAKE_PROJECT_NAME}
+	      PRIVATE
+	        "-framework QtCore"
+	        "-framework QtGui"
+	        "-framework QtNetwork"
+	        "-framework QtWidgets"
+	        "-framework AppKit"
+	        "-framework ApplicationServices"
+	    )
+	  else()
     find_package(Qt6 COMPONENTS Widgets Core Network)
     target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Qt6::Core Qt6::Network Qt6::Widgets)
   endif()
@@ -69,9 +75,11 @@ target_sources(
     src/bm-marker-data.hpp
     src/bm-marker-export-sink.hpp
     src/bm-marker-dialog.cpp
-    src/bm-marker-dialog.hpp
-    src/bm-window-focus.cpp
-    src/bm-window-focus.hpp
+	    src/bm-marker-dialog.hpp
+	    src/bm-synthetic-keypress.cpp
+	    src/bm-synthetic-keypress.hpp
+	    src/bm-window-focus.cpp
+	    src/bm-window-focus.hpp
     src/bm-fcpxml-writer.cpp
     src/bm-fcpxml-writer.hpp
     src/bm-final-cut-fcpxml-sink.cpp
@@ -103,14 +111,21 @@ target_sources(
 
 if(WIN32)
   target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/bm-window-focus-win.cpp)
+  target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/bm-synthetic-keypress-win.cpp)
 elseif(APPLE)
   target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/bm-window-focus-macos.mm)
+  target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/bm-synthetic-keypress-macos.mm)
 elseif(UNIX)
   target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/bm-window-focus-linux.cpp)
-  find_package(X11 QUIET)
+  target_sources(${CMAKE_PROJECT_NAME} PRIVATE src/bm-synthetic-keypress-linux.cpp)
+  find_package(X11 QUIET COMPONENTS Xtst)
   if(X11_FOUND)
     target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE X11::X11)
     target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE BETTER_MARKERS_HAVE_X11=1)
+    if(X11_Xtst_FOUND)
+      target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE X11::Xtst)
+      target_compile_definitions(${CMAKE_PROJECT_NAME} PRIVATE BETTER_MARKERS_HAVE_XTEST=1)
+    endif()
   endif()
 endif()
 
