@@ -73,6 +73,10 @@ bool ScopeStore::load_global()
 	m_skipped_update_tag = json_obj.value("skippedUpdateTag").toString();
 	m_auto_focus_marker_dialog = json_obj.value("autoFocusMarkerDialog").toBool(true);
 	m_pause_recording_during_marker_dialog = json_obj.value("pauseRecordingDuringMarkerDialog").toBool(true);
+	m_synthetic_keypress_around_focus_enabled =
+		json_obj.value("syntheticKeypressAroundFocusEnabled").toBool(false);
+	m_synthetic_keypress_before_focus_portable = json_obj.value("syntheticKeypressBeforeFocus").toString("Esc");
+	m_synthetic_keypress_after_unfocus_portable = json_obj.value("syntheticKeypressAfterUnfocus").toString("Esc");
 	return true;
 }
 
@@ -83,6 +87,9 @@ bool ScopeStore::save_global() const
 	root.insert("skippedUpdateTag", m_skipped_update_tag);
 	root.insert("autoFocusMarkerDialog", m_auto_focus_marker_dialog);
 	root.insert("pauseRecordingDuringMarkerDialog", m_pause_recording_during_marker_dialog);
+	root.insert("syntheticKeypressAroundFocusEnabled", m_synthetic_keypress_around_focus_enabled);
+	root.insert("syntheticKeypressBeforeFocus", m_synthetic_keypress_before_focus_portable);
+	root.insert("syntheticKeypressAfterUnfocus", m_synthetic_keypress_after_unfocus_portable);
 	return write_json_file(global_store_path(), root);
 }
 
@@ -201,6 +208,36 @@ bool ScopeStore::pause_recording_during_marker_dialog() const
 void ScopeStore::set_pause_recording_during_marker_dialog(bool enabled)
 {
 	m_pause_recording_during_marker_dialog = enabled;
+}
+
+bool ScopeStore::synthetic_keypress_around_focus_enabled() const
+{
+	return m_synthetic_keypress_around_focus_enabled;
+}
+
+void ScopeStore::set_synthetic_keypress_around_focus_enabled(bool enabled)
+{
+	m_synthetic_keypress_around_focus_enabled = enabled;
+}
+
+QString ScopeStore::synthetic_keypress_before_focus_portable() const
+{
+	return m_synthetic_keypress_before_focus_portable;
+}
+
+void ScopeStore::set_synthetic_keypress_before_focus_portable(const QString &portable)
+{
+	m_synthetic_keypress_before_focus_portable = portable;
+}
+
+QString ScopeStore::synthetic_keypress_after_unfocus_portable() const
+{
+	return m_synthetic_keypress_after_unfocus_portable;
+}
+
+void ScopeStore::set_synthetic_keypress_after_unfocus_portable(const QString &portable)
+{
+	m_synthetic_keypress_after_unfocus_portable = portable;
 }
 
 QString ScopeStore::global_store_path() const

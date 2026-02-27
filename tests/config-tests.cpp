@@ -82,6 +82,12 @@ void test_scope_store_migration_defaults()
 		"migrated global store has autofocus enabled");
 	require(doc.object().value("pauseRecordingDuringMarkerDialog").toBool(false),
 		"migrated global store has pause-during-dialog enabled");
+	require(!doc.object().value("syntheticKeypressAroundFocusEnabled").toBool(true),
+		"migrated global store has synthetic keypress disabled");
+	require(doc.object().value("syntheticKeypressBeforeFocus").toString() == "Esc",
+		"migrated global store has default synthetic pre key");
+	require(doc.object().value("syntheticKeypressAfterUnfocus").toString() == "Esc",
+		"migrated global store has default synthetic post key");
 }
 
 void test_scope_store_skipped_update_tag_persistence()
@@ -141,6 +147,63 @@ void test_scope_store_pause_recording_during_dialog_persistence()
 	require(!reloaded.pause_recording_during_marker_dialog(), "persisted pause during dialog value matches");
 }
 
+void test_scope_store_synthetic_keypress_defaults()
+{
+	QTemporaryDir temp_dir;
+	require(temp_dir.isValid(), "temporary directory created for synthetic defaults");
+
+	bm::ScopeStore store;
+	store.set_base_dir(temp_dir.path());
+	require(store.load_global(), "load empty global store for synthetic defaults");
+	require(!store.synthetic_keypress_around_focus_enabled(), "default synthetic keypress is disabled");
+	require(store.synthetic_keypress_before_focus_portable() == "Esc", "default synthetic pre key is Esc");
+	require(store.synthetic_keypress_after_unfocus_portable() == "Esc", "default synthetic post key is Esc");
+}
+
+void test_scope_store_synthetic_keypress_persistence()
+{
+	QTemporaryDir temp_dir;
+	require(temp_dir.isValid(), "temporary directory created for synthetic keypress persistence");
+
+	bm::ScopeStore store;
+	store.set_base_dir(temp_dir.path());
+	require(store.load_global(), "load empty global store for synthetic keypress");
+	store.set_synthetic_keypress_around_focus_enabled(true);
+	store.set_synthetic_keypress_before_focus_portable("Ctrl+Shift+K");
+	store.set_synthetic_keypress_after_unfocus_portable("Alt+F12");
+	require(store.save_global(), "save global store with synthetic keypress");
+
+	bm::ScopeStore reloaded;
+	reloaded.set_base_dir(temp_dir.path());
+	require(reloaded.load_global(), "reload global store with synthetic keypress");
+	require(reloaded.synthetic_keypress_around_focus_enabled(), "persisted synthetic enabled value matches");
+	require(reloaded.synthetic_keypress_before_focus_portable() == "Ctrl+Shift+K",
+		"persisted synthetic pre key matches");
+	require(reloaded.synthetic_keypress_after_unfocus_portable() == "Alt+F12",
+		"persisted synthetic post key matches");
+}
+
+void test_scope_store_synthetic_keypress_empty_values()
+{
+	QTemporaryDir temp_dir;
+	require(temp_dir.isValid(), "temporary directory created for synthetic empty value persistence");
+
+	bm::ScopeStore store;
+	store.set_base_dir(temp_dir.path());
+	require(store.load_global(), "load empty global store for synthetic empty value");
+	store.set_synthetic_keypress_around_focus_enabled(true);
+	store.set_synthetic_keypress_before_focus_portable("");
+	store.set_synthetic_keypress_after_unfocus_portable("");
+	require(store.save_global(), "save global store with empty synthetic key values");
+
+	bm::ScopeStore reloaded;
+	reloaded.set_base_dir(temp_dir.path());
+	require(reloaded.load_global(), "reload global store with empty synthetic key values");
+	require(reloaded.synthetic_keypress_around_focus_enabled(), "synthetic enabled remains true with empty key values");
+	require(reloaded.synthetic_keypress_before_focus_portable().isEmpty(), "empty synthetic pre key remains empty");
+	require(reloaded.synthetic_keypress_after_unfocus_portable().isEmpty(), "empty synthetic post key remains empty");
+}
+
 void test_focus_policy_hotkey_scope()
 {
 	require(!bm::should_use_hotkey_focus_session(false, true, true), "focus session disabled when auto focus off");
@@ -168,6 +231,9 @@ void run_config_tests()
 	test_scope_store_skipped_update_tag_persistence();
 	test_scope_store_auto_focus_persistence();
 	test_scope_store_pause_recording_during_dialog_persistence();
+	test_scope_store_synthetic_keypress_defaults();
+	test_scope_store_synthetic_keypress_persistence();
+	test_scope_store_synthetic_keypress_empty_values();
 	test_focus_policy_hotkey_scope();
 	test_focus_policy_restore_condition();
 }

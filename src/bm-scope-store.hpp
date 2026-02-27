@@ -35,6 +35,12 @@ public:
 	void set_auto_focus_marker_dialog(bool enabled);
 	bool pause_recording_during_marker_dialog() const;
 	void set_pause_recording_during_marker_dialog(bool enabled);
+	bool synthetic_keypress_around_focus_enabled() const;
+	void set_synthetic_keypress_around_focus_enabled(bool enabled);
+	QString synthetic_keypress_before_focus_portable() const;
+	void set_synthetic_keypress_before_focus_portable(const QString &portable);
+	QString synthetic_keypress_after_unfocus_portable() const;
+	void set_synthetic_keypress_after_unfocus_portable(const QString &portable);
 
 	QString global_store_path() const;
 	QString profile_store_path() const;
@@ -56,6 +62,9 @@ private:
 	QString m_skipped_update_tag;
 	bool m_auto_focus_marker_dialog = true;
 	bool m_pause_recording_during_marker_dialog = true;
+	bool m_synthetic_keypress_around_focus_enabled = false;
+	QString m_synthetic_keypress_before_focus_portable = "Esc";
+	QString m_synthetic_keypress_after_unfocus_portable = "Esc";
 };
 
 } // namespace bm
