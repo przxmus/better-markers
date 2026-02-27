@@ -23,6 +23,13 @@ public:
 	void retry_recovery_queue();
 
 private:
+	static constexpr int kFinalizeRetryAttempts = 8;
+	static constexpr int kFinalizeRetryInitialDelayMs = 120;
+	static constexpr int kFinalizeRetryMaxDelayMs = 2000;
+	static constexpr int kRecoveryRetryAttempts = 4;
+	static constexpr int kRecoveryRetryInitialDelayMs = 200;
+	static constexpr int kRecoveryRetryMaxDelayMs = 2000;
+
 	XmpSidecarWriter m_xmp_writer;
 	Mp4MovEmbedEngine m_embed_engine;
 	RecoveryQueue m_recovery;
@@ -55,7 +62,9 @@ inline bool PremiereXmpSink::on_recording_closed(const MarkerExportRecordingCont
 	if (!QFile::exists(sidecar))
 		return true;
 
-	const EmbedResult result = m_embed_engine.embed_from_sidecar(recording_ctx.media_path, sidecar);
+	const EmbedResult result =
+		m_embed_engine.embed_from_sidecar_with_retry(recording_ctx.media_path, sidecar, kFinalizeRetryAttempts,
+							     kFinalizeRetryInitialDelayMs, kFinalizeRetryMaxDelayMs);
 	if (result.ok) {
 		m_recovery.remove(recording_ctx.media_path);
 		m_recovery.save();
@@ -64,6 +73,9 @@ inline bool PremiereXmpSink::on_recording_closed(const MarkerExportRecordingCont
 		return true;
 	}
 
+	blog(LOG_WARNING, "[better-markers][%s] XMP embed retries exhausted for '%s': %s",
+	     sink_name().toUtf8().constData(), recording_ctx.media_path.toUtf8().constData(),
+	     result.error.toUtf8().constData());
 	m_recovery.upsert(recording_ctx.media_path, result.error);
 	m_recovery.save();
 	if (error)
@@ -84,7 +96,10 @@ inline void PremiereXmpSink::retry_recovery_queue()
 		if (!QFile::exists(sidecar))
 			continue;
 
-		const EmbedResult result = m_embed_engine.embed_from_sidecar(job.media_path, sidecar);
+		const EmbedResult result = m_embed_engine.embed_from_sidecar_with_retry(job.media_path, sidecar,
+											kRecoveryRetryAttempts,
+											kRecoveryRetryInitialDelayMs,
+											kRecoveryRetryMaxDelayMs);
 		if (result.ok)
 			m_recovery.remove(job.media_path);
 		else

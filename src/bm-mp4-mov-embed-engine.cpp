@@ -2,6 +2,10 @@
 
 #include <QFile>
 #include <QFileInfo>
+#include <QThread>
+
+#include <algorithm>
+#include <limits>
 
 namespace bm {
 namespace {
@@ -258,24 +262,30 @@ bool has_xmp_atom(const QString &path)
 		const QByteArray moov = file.read(static_cast<qint64>(atom.size));
 		if (moov.size() != static_cast<qint64>(atom.size))
 			return false;
+		if (moov.size() > std::numeric_limits<int>::max())
+			return false;
+		const int moov_size = static_cast<int>(moov.size());
 
 		QVector<Atom> moov_children;
-		if (!parse_atoms_from_buffer(moov, 8, moov.size(), moov_children, &error))
+		if (!parse_atoms_from_buffer(moov, 8, moov_size, moov_children, &error))
 			return false;
 		for (const Atom &child : moov_children) {
 			if (child.type != "udta")
 				continue;
 
 			const QByteArray udta = moov.mid(static_cast<int>(child.offset), static_cast<int>(child.size));
+			if (udta.size() > std::numeric_limits<int>::max())
+				return false;
+			const int udta_size = static_cast<int>(udta.size());
 			QVector<Atom> udta_children;
-			if (!parse_atoms_from_buffer(udta, 8, udta.size(), udta_children, &error))
+			if (!parse_atoms_from_buffer(udta, 8, udta_size, udta_children, &error))
 				return false;
 			for (const Atom &udta_child : udta_children) {
 				if (udta_child.type == "XMP_")
 					return true;
 				if (udta_child.type == "uuid") {
-					const QByteArray uuid_atom =
-						udta.mid(static_cast<int>(udta_child.offset), static_cast<int>(udta_child.size));
+					const QByteArray uuid_atom = udta.mid(static_cast<int>(udta_child.offset),
+									      static_cast<int>(udta_child.size));
 					if (is_xmp_uuid_atom(uuid_atom))
 						return true;
 				}
@@ -286,40 +296,65 @@ bool has_xmp_atom(const QString &path)
 	return false;
 }
 
+EmbedResult embed_failure(const QString &error, bool retryable)
+{
+	return {false, error, retryable};
+}
+
 } // namespace
 
 EmbedResult Mp4MovEmbedEngine::embed_from_sidecar(const QString &media_path, const QString &sidecar_path) const
 {
 	QFile sidecar(sidecar_path);
 	if (!sidecar.exists())
-		return {false, QString("Missing sidecar: %1").arg(sidecar_path)};
+		return embed_failure(QString("Missing sidecar: %1").arg(sidecar_path), false);
 	if (!sidecar.open(QIODevice::ReadOnly))
-		return {false, QString("Failed to open sidecar: %1").arg(sidecar_path)};
+		return embed_failure(QString("Failed to open sidecar: %1").arg(sidecar_path), true);
 
 	const QByteArray payload = sidecar.readAll();
 	if (payload.isEmpty())
-		return {false, QString("Sidecar is empty: %1").arg(sidecar_path)};
+		return embed_failure(QString("Sidecar is empty: %1").arg(sidecar_path), false);
 
 	return embed_xmp(media_path, payload);
+}
+
+EmbedResult Mp4MovEmbedEngine::embed_from_sidecar_with_retry(const QString &media_path, const QString &sidecar_path,
+							     int max_attempts, int initial_delay_ms,
+							     int max_delay_ms) const
+{
+	const int attempts = std::max(1, max_attempts);
+	int delay_ms = std::max(0, initial_delay_ms);
+	const int max_delay = std::max(delay_ms, max_delay_ms);
+
+	EmbedResult result = embed_from_sidecar(media_path, sidecar_path);
+	for (int attempt = 1; attempt < attempts && !result.ok && result.retryable; ++attempt) {
+		if (delay_ms > 0)
+			QThread::msleep(static_cast<unsigned long>(delay_ms));
+		result = embed_from_sidecar(media_path, sidecar_path);
+		if (delay_ms > 0)
+			delay_ms = std::min(max_delay, delay_ms * 2);
+	}
+
+	return result;
 }
 
 EmbedResult Mp4MovEmbedEngine::embed_xmp(const QString &media_path, const QByteArray &xmp_payload) const
 {
 	QFile input(media_path);
 	if (!input.exists())
-		return {false, QString("Recording file not found: %1").arg(media_path)};
+		return embed_failure(QString("Recording file not found: %1").arg(media_path), true);
 	if (!input.open(QIODevice::ReadOnly))
-		return {false, QString("Failed to open recording file: %1").arg(media_path)};
+		return embed_failure(QString("Failed to open recording file: %1").arg(media_path), true);
 
 	QVector<Atom> top_level;
 	QString error;
 	if (!parse_top_level_atoms(input, top_level, &error))
-		return {false, QString("Failed to parse MP4/MOV atoms: %1").arg(error)};
+		return embed_failure(QString("Failed to parse MP4/MOV atoms: %1").arg(error), true);
 
 	bool ok = true;
 	const QByteArray xmp_atom = make_uuid_atom(xmp_payload, &ok);
 	if (!ok)
-		return {false, "XMP payload is too large for MP4 uuid atom"};
+		return embed_failure("XMP payload is too large for MP4 uuid atom", false);
 
 	int existing_xmp_index = -1;
 	for (int i = 0; i < top_level.size(); ++i) {
@@ -327,10 +362,10 @@ EmbedResult Mp4MovEmbedEngine::embed_xmp(const QString &media_path, const QByteA
 		if (atom.type != "uuid")
 			continue;
 		if (!input.seek(static_cast<qint64>(atom.offset)))
-			return {false, "Failed to seek existing uuid atom"};
+			return embed_failure("Failed to seek existing uuid atom", true);
 		const QByteArray uuid_atom = input.read(static_cast<qint64>(atom.size));
 		if (uuid_atom.size() != static_cast<qint64>(atom.size))
-			return {false, "Failed to read existing uuid atom"};
+			return embed_failure("Failed to read existing uuid atom", true);
 		if (is_xmp_uuid_atom(uuid_atom)) {
 			existing_xmp_index = i;
 			break;
@@ -343,7 +378,7 @@ EmbedResult Mp4MovEmbedEngine::embed_xmp(const QString &media_path, const QByteA
 
 	QFile output(temp_path);
 	if (!output.open(QIODevice::WriteOnly | QIODevice::Truncate))
-		return {false, QString("Failed to open temp file: %1").arg(temp_path)};
+		return embed_failure(QString("Failed to open temp file: %1").arg(temp_path), true);
 
 	if (existing_xmp_index >= 0) {
 		const Atom existing_xmp = top_level.at(existing_xmp_index);
@@ -351,12 +386,12 @@ EmbedResult Mp4MovEmbedEngine::embed_xmp(const QString &media_path, const QByteA
 		if (!copy_range(input, output, 0, existing_xmp.offset, &error)) {
 			output.close();
 			QFile::remove(temp_path);
-			return {false, error};
+			return embed_failure(error, true);
 		}
 		if (output.write(xmp_atom) != xmp_atom.size()) {
 			output.close();
 			QFile::remove(temp_path);
-			return {false, "Failed to write replacement XMP uuid atom"};
+			return embed_failure("Failed to write replacement XMP uuid atom", true);
 		}
 
 		const quint64 tail_offset = existing_xmp.offset + existing_xmp.size;
@@ -364,18 +399,18 @@ EmbedResult Mp4MovEmbedEngine::embed_xmp(const QString &media_path, const QByteA
 		if (!copy_range(input, output, tail_offset, tail_size, &error)) {
 			output.close();
 			QFile::remove(temp_path);
-			return {false, error};
+			return embed_failure(error, true);
 		}
 	} else {
 		if (!copy_range(input, output, 0, static_cast<quint64>(input.size()), &error)) {
 			output.close();
 			QFile::remove(temp_path);
-			return {false, error};
+			return embed_failure(error, true);
 		}
 		if (output.write(xmp_atom) != xmp_atom.size()) {
 			output.close();
 			QFile::remove(temp_path);
-			return {false, "Failed to append XMP uuid atom"};
+			return embed_failure("Failed to append XMP uuid atom", true);
 		}
 	}
 	output.close();
@@ -383,19 +418,19 @@ EmbedResult Mp4MovEmbedEngine::embed_xmp(const QString &media_path, const QByteA
 
 	if (!has_xmp_atom(temp_path)) {
 		QFile::remove(temp_path);
-		return {false, "Embedded file validation failed (missing XMP metadata atom)"};
+		return embed_failure("Embedded file validation failed (missing XMP metadata atom)", false);
 	}
 
 	QFile::remove(backup_path);
 	if (!QFile::rename(media_path, backup_path)) {
 		QFile::remove(temp_path);
-		return {false, "Failed to create backup before atomic replace"};
+		return embed_failure("Failed to create backup before atomic replace", true);
 	}
 
 	if (!QFile::rename(temp_path, media_path)) {
 		QFile::rename(backup_path, media_path);
 		QFile::remove(temp_path);
-		return {false, "Failed to replace original file with embedded file"};
+		return embed_failure("Failed to replace original file with embedded file", true);
 	}
 
 	QFile::remove(backup_path);
