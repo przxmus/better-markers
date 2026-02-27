@@ -139,8 +139,10 @@ if(BUILD_TESTING AND ENABLE_QT)
   add_executable(
     better-markers-tests
     tests/config-tests.cpp
+    tests/embed-engine-tests.cpp
     tests/fcpxml-tests.cpp
     src/bm-fcpxml-writer.cpp
+    src/bm-mp4-mov-embed-engine.cpp
     src/bm-models.cpp
     src/bm-scope-store.cpp
   )

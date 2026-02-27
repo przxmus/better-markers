@@ -81,6 +81,7 @@ void test_resolve_profile_serialization()
 } // namespace
 
 void run_config_tests();
+void run_embed_engine_tests();
 
 int main()
 {
@@ -89,5 +90,6 @@ int main()
 	test_final_cut_profile_serialization();
 	test_resolve_profile_serialization();
 	run_config_tests();
+	run_embed_engine_tests();
 	return 0;
 }
