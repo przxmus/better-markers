@@ -68,7 +68,9 @@ Use the platform archive (`-x86_64-ubuntu-gnu.tar.xz`), not `-source.tar.xz`.
 3. Create marker templates.
 4. Optionally set hotkeys in `Settings -> Hotkeys`.
 5. In `Marker Dialog`, leave `Pause recording while marker dialog is open` enabled (default) if you want typing time excluded from footage.
-6. Start recording and add markers from the dock or hotkeys.
+6. Optional: enable `Send synthetic keypress before/after marker dialog focus flow` for hotkey dialogs.
+7. Optional: set `Key to press before dialog focus` and `Key to press after dialog unfocus` (defaults are `Esc` / `Esc` when the feature is turned on).
+8. Start recording and add markers from the dock or hotkeys.
 
 ## Generated Files
 
@@ -99,6 +101,9 @@ All files are written in the same folder as the recording.
 
 - Markers can be added only while recording is active (not paused).
 - If enabled in settings (default), recording is paused while a marker dialog is open and resumes when the dialog flow ends.
+- Synthetic pre/post keypresses are disabled by default and apply only to hotkey dialogs.
+- If synthetic pre/post keypresses are enabled, the sequence is: pause recording -> pre keypress -> dialog -> restore focus -> post keypress -> resume recording.
+- On Wayland and on systems without required input permissions, synthetic keypresses may be unavailable. Better Markers shows one warning per OBS session in that case.
 - Export writes happen immediately after each new marker.
 - Multi-output runs in parallel: one target failing does not block the others.
 - Final Cut export is available only on macOS.

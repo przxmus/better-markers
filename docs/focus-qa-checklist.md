@@ -42,6 +42,23 @@ Use this checklist to validate marker dialog focus behavior after installation.
 4. Confirm best-effort focus behavior (compositor may block forced activation).
 5. Confirm recording resumes after closing the dialog.
 
+## Synthetic keypress flow
+
+1. In `Tools -> Better Markers Settings -> Marker Dialog`, enable:
+   - `Auto-focus marker dialog`
+   - `Pause recording while marker dialog is open`
+   - `Send synthetic keypress before/after marker dialog focus flow`
+2. Set:
+   - `Key to press before dialog focus` to `Esc`
+   - `Key to press after dialog unfocus` to `Esc`
+3. Start recording and trigger a hotkey dialog (`Quick Custom Marker` or editable template hotkey).
+4. Confirm log order is: auto-pause -> synthetic pre key -> dialog -> restore focus -> synthetic post key -> auto-unpause.
+5. Repeat and close with `OK`, `Esc`, `Cancel`, and window close button (`X`).
+6. Confirm the same keypress + pause order is preserved on all exit paths.
+7. Disable `Auto-focus marker dialog` and confirm synthetic keypress controls are disabled in settings.
+8. Keep synthetic enabled but clear pre or post key sequence and confirm empty side is skipped without warnings.
+9. On unsupported setups (Wayland or missing permissions), confirm warning popup is shown only once per OBS session.
+
 ## Non-regression checks
 
 1. Trigger `Quick Marker` (no dialog) and confirm behavior is unchanged.
