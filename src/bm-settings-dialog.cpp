@@ -21,6 +21,7 @@
 #include <QCheckBox>
 #include <QGroupBox>
 #include <QSignalBlocker>
+#include <QtGlobal>
 #include <QUrl>
 #include <QVBoxLayout>
 
@@ -38,6 +39,23 @@ QString scope_label(TemplateScope scope)
 	default:
 		return bm::bm_text("BetterMarkers.Scope.SceneCollection");
 	}
+}
+
+void configure_single_key_sequence_edit(QKeySequenceEdit *edit)
+{
+	if (!edit)
+		return;
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
+	edit->setMaximumSequenceLength(1);
+#else
+	QObject::connect(edit, &QKeySequenceEdit::keySequenceChanged, edit, [edit](const QKeySequence &sequence) {
+		if (sequence.count() <= 1)
+			return;
+
+		const QSignalBlocker blocker(edit);
+		edit->setKeySequence(QKeySequence(sequence[0]));
+	});
+#endif
 }
 
 } // namespace
@@ -129,9 +147,9 @@ SettingsDialog::SettingsDialog(ScopeStore *store, QWidget *parent) : QDialog(par
 	synthetic_keypress_form->setContentsMargins(24, 0, 0, 0);
 	synthetic_keypress_form->setHorizontalSpacing(12);
 	m_synthetic_pre_key_edit = new QKeySequenceEdit(dialog_behavior_group);
-	m_synthetic_pre_key_edit->setMaximumSequenceLength(1);
+	configure_single_key_sequence_edit(m_synthetic_pre_key_edit);
 	m_synthetic_post_key_edit = new QKeySequenceEdit(dialog_behavior_group);
-	m_synthetic_post_key_edit->setMaximumSequenceLength(1);
+	configure_single_key_sequence_edit(m_synthetic_post_key_edit);
 	synthetic_keypress_form->addRow(bm_text("BetterMarkers.Settings.SyntheticKeypressBeforeFocusLabel"),
 					m_synthetic_pre_key_edit);
 	synthetic_keypress_form->addRow(bm_text("BetterMarkers.Settings.SyntheticKeypressAfterUnfocusLabel"),
