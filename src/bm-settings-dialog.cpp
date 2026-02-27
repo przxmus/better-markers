@@ -121,8 +121,8 @@ SettingsDialog::SettingsDialog(ScopeStore *store, QWidget *parent) : QDialog(par
 	m_pause_during_dialog_toggle = new QCheckBox(
 		bm_text("BetterMarkers.Settings.PauseRecordingDuringMarkerDialogLabel"), dialog_behavior_group);
 	dialog_behavior_layout->addWidget(m_pause_during_dialog_toggle);
-	m_synthetic_keypress_toggle = new QCheckBox(
-		bm_text("BetterMarkers.Settings.SyntheticKeypressAroundFocusLabel"), dialog_behavior_group);
+	m_synthetic_keypress_toggle = new QCheckBox(bm_text("BetterMarkers.Settings.SyntheticKeypressAroundFocusLabel"),
+						    dialog_behavior_group);
 	dialog_behavior_layout->addWidget(m_synthetic_keypress_toggle);
 
 	auto *synthetic_keypress_form = new QFormLayout();
@@ -138,7 +138,8 @@ SettingsDialog::SettingsDialog(ScopeStore *store, QWidget *parent) : QDialog(par
 					m_synthetic_post_key_edit);
 	dialog_behavior_layout->addLayout(synthetic_keypress_form);
 
-	m_synthetic_info_label = new QLabel(bm_text("BetterMarkers.Settings.SyntheticKeypressInfo"), dialog_behavior_group);
+	m_synthetic_info_label =
+		new QLabel(bm_text("BetterMarkers.Settings.SyntheticKeypressInfo"), dialog_behavior_group);
 	m_synthetic_info_label->setWordWrap(true);
 	dialog_behavior_layout->addWidget(m_synthetic_info_label);
 	main_layout->addWidget(dialog_behavior_group);
@@ -243,13 +244,13 @@ void SettingsDialog::refresh()
 	}
 	{
 		QSignalBlocker block_synthetic_pre(m_synthetic_pre_key_edit);
-		m_synthetic_pre_key_edit->setKeySequence(
-			QKeySequence::fromString(m_store->synthetic_keypress_before_focus_portable(), QKeySequence::PortableText));
+		m_synthetic_pre_key_edit->setKeySequence(QKeySequence::fromString(
+			m_store->synthetic_keypress_before_focus_portable(), QKeySequence::PortableText));
 	}
 	{
 		QSignalBlocker block_synthetic_post(m_synthetic_post_key_edit);
-		m_synthetic_post_key_edit->setKeySequence(
-			QKeySequence::fromString(m_store->synthetic_keypress_after_unfocus_portable(), QKeySequence::PortableText));
+		m_synthetic_post_key_edit->setKeySequence(QKeySequence::fromString(
+			m_store->synthetic_keypress_after_unfocus_portable(), QKeySequence::PortableText));
 	}
 	refresh_synthetic_keypress_controls();
 
@@ -277,16 +278,17 @@ void SettingsDialog::refresh_synthetic_keypress_controls()
 	if (m_synthetic_keypress_toggle) {
 		m_synthetic_keypress_toggle->setEnabled(auto_focus_enabled);
 		m_synthetic_keypress_toggle->setToolTip(
-			auto_focus_enabled ? QString() : bm_text("BetterMarkers.Settings.SyntheticKeypressRequiresAutoFocus"));
+			auto_focus_enabled ? QString()
+					   : bm_text("BetterMarkers.Settings.SyntheticKeypressRequiresAutoFocus"));
 	}
 	if (m_synthetic_pre_key_edit)
 		m_synthetic_pre_key_edit->setEnabled(enable_key_editors);
 	if (m_synthetic_post_key_edit)
 		m_synthetic_post_key_edit->setEnabled(enable_key_editors);
 	if (m_synthetic_info_label)
-		m_synthetic_info_label->setText(auto_focus_enabled
-						? bm_text("BetterMarkers.Settings.SyntheticKeypressInfo")
-						: bm_text("BetterMarkers.Settings.SyntheticKeypressRequiresAutoFocus"));
+		m_synthetic_info_label->setText(
+			auto_focus_enabled ? bm_text("BetterMarkers.Settings.SyntheticKeypressInfo")
+					   : bm_text("BetterMarkers.Settings.SyntheticKeypressRequiresAutoFocus"));
 }
 
 void SettingsDialog::update_export_profile_from_ui()

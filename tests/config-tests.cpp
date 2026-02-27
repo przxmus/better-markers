@@ -199,9 +199,11 @@ void test_scope_store_synthetic_keypress_empty_values()
 	bm::ScopeStore reloaded;
 	reloaded.set_base_dir(temp_dir.path());
 	require(reloaded.load_global(), "reload global store with empty synthetic key values");
-	require(reloaded.synthetic_keypress_around_focus_enabled(), "synthetic enabled remains true with empty key values");
+	require(reloaded.synthetic_keypress_around_focus_enabled(),
+		"synthetic enabled remains true with empty key values");
 	require(reloaded.synthetic_keypress_before_focus_portable().isEmpty(), "empty synthetic pre key remains empty");
-	require(reloaded.synthetic_keypress_after_unfocus_portable().isEmpty(), "empty synthetic post key remains empty");
+	require(reloaded.synthetic_keypress_after_unfocus_portable().isEmpty(),
+		"empty synthetic post key remains empty");
 }
 
 void test_focus_policy_hotkey_scope()

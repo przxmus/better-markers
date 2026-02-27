@@ -235,24 +235,24 @@ void MarkerController::add_marker_from_template_hotkey(const MarkerTemplate &tem
 		HotkeyDialogFocusSession focus_session(m_store);
 		DialogRecordingPauseSession pause_session(m_store);
 		QVector<MarkerTemplate> templates{templ};
-			MarkerDialog dialog(templates, MarkerDialog::Mode::FixedTemplate, templ.id, m_parent_window);
-			focus_session.prepare_dialog(&dialog);
-			pause_session.pause_if_needed();
-			maybe_send_synthetic_keypress(true);
-			if (dialog.exec() != QDialog::Accepted) {
-				focus_session.restore();
-				maybe_send_synthetic_keypress(false);
-				pause_session.resume_if_needed();
-				return;
-			}
-
-		title = dialog.marker_title();
-			description = dialog.marker_description();
-			color_id = dialog.marker_color_id();
+		MarkerDialog dialog(templates, MarkerDialog::Mode::FixedTemplate, templ.id, m_parent_window);
+		focus_session.prepare_dialog(&dialog);
+		pause_session.pause_if_needed();
+		maybe_send_synthetic_keypress(true);
+		if (dialog.exec() != QDialog::Accepted) {
 			focus_session.restore();
 			maybe_send_synthetic_keypress(false);
 			pause_session.resume_if_needed();
+			return;
 		}
+
+		title = dialog.marker_title();
+		description = dialog.marker_description();
+		color_id = dialog.marker_color_id();
+		focus_session.restore();
+		maybe_send_synthetic_keypress(false);
+		pause_session.resume_if_needed();
+	}
 
 	const MarkerRecord marker = marker_from_inputs(ctx, title, description, color_id);
 	append_marker(ctx.media_path, marker);

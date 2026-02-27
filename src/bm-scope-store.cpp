@@ -73,8 +73,7 @@ bool ScopeStore::load_global()
 	m_skipped_update_tag = json_obj.value("skippedUpdateTag").toString();
 	m_auto_focus_marker_dialog = json_obj.value("autoFocusMarkerDialog").toBool(true);
 	m_pause_recording_during_marker_dialog = json_obj.value("pauseRecordingDuringMarkerDialog").toBool(true);
-	m_synthetic_keypress_around_focus_enabled =
-		json_obj.value("syntheticKeypressAroundFocusEnabled").toBool(false);
+	m_synthetic_keypress_around_focus_enabled = json_obj.value("syntheticKeypressAroundFocusEnabled").toBool(false);
 	m_synthetic_keypress_before_focus_portable = json_obj.value("syntheticKeypressBeforeFocus").toString("Esc");
 	m_synthetic_keypress_after_unfocus_portable = json_obj.value("syntheticKeypressAfterUnfocus").toString("Esc");
 	return true;

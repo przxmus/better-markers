@@ -44,17 +44,17 @@ if(ENABLE_QT)
     )
     target_link_options(${CMAKE_PROJECT_NAME} PRIVATE "-F${QT_FRAMEWORK_DIR}" "-iframework${QT_FRAMEWORK_DIR}")
     target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE "-F${QT_FRAMEWORK_DIR}" "-iframework${QT_FRAMEWORK_DIR}")
-	    target_link_libraries(
-	      ${CMAKE_PROJECT_NAME}
-	      PRIVATE
-	        "-framework QtCore"
-	        "-framework QtGui"
-	        "-framework QtNetwork"
-	        "-framework QtWidgets"
-	        "-framework AppKit"
-	        "-framework ApplicationServices"
-	    )
-	  else()
+    target_link_libraries(
+      ${CMAKE_PROJECT_NAME}
+      PRIVATE
+        "-framework QtCore"
+        "-framework QtGui"
+        "-framework QtNetwork"
+        "-framework QtWidgets"
+        "-framework AppKit"
+        "-framework ApplicationServices"
+    )
+  else()
     find_package(Qt6 COMPONENTS Widgets Core Network)
     target_link_libraries(${CMAKE_PROJECT_NAME} PRIVATE Qt6::Core Qt6::Network Qt6::Widgets)
   endif()
@@ -75,11 +75,11 @@ target_sources(
     src/bm-marker-data.hpp
     src/bm-marker-export-sink.hpp
     src/bm-marker-dialog.cpp
-	    src/bm-marker-dialog.hpp
-	    src/bm-synthetic-keypress.cpp
-	    src/bm-synthetic-keypress.hpp
-	    src/bm-window-focus.cpp
-	    src/bm-window-focus.hpp
+    src/bm-marker-dialog.hpp
+    src/bm-synthetic-keypress.cpp
+    src/bm-synthetic-keypress.hpp
+    src/bm-window-focus.cpp
+    src/bm-window-focus.hpp
     src/bm-fcpxml-writer.cpp
     src/bm-fcpxml-writer.hpp
     src/bm-final-cut-fcpxml-sink.cpp

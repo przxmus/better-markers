@@ -132,7 +132,8 @@ SyntheticKeypressResult send_platform_synthetic_keypress(Qt::Key key, Qt::Keyboa
 
 	const UINT sent = SendInput(static_cast<UINT>(events.size()), events.data(), sizeof(INPUT));
 	if (sent != events.size())
-		return {SyntheticKeypressStatus::SystemFailure, QString("SendInput sent %1/%2 events").arg(sent).arg(events.size())};
+		return {SyntheticKeypressStatus::SystemFailure,
+			QString("SendInput sent %1/%2 events").arg(sent).arg(events.size())};
 
 	return {SyntheticKeypressStatus::Success, "ok"};
 }
