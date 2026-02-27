@@ -44,6 +44,7 @@ private:
 	MarkerRecord marker_from_inputs(const PendingMarkerContext &ctx, const QString &title,
 					const QString &description, int color_id) const;
 	void prepare_marker_dialog(MarkerDialog *dialog) const;
+	void maybe_send_synthetic_keypress(bool before_focus) const;
 
 	void append_marker(const QString &media_path, const MarkerRecord &marker);
 	void finalize_closed_file(const QString &closed_file);
@@ -69,6 +70,7 @@ private:
 	QHash<QString, QVector<MarkerRecord>> m_markers_by_file;
 	std::atomic_bool m_shutting_down{false};
 	std::atomic_bool m_hotkey_dialog_open{false};
+	mutable std::atomic_bool m_synthetic_keypress_warning_shown{false};
 };
 
 } // namespace bm

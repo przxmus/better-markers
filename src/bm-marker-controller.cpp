@@ -3,6 +3,7 @@
 #include "bm-focus-policy.hpp"
 #include "bm-localization.hpp"
 #include "bm-marker-dialog.hpp"
+#include "bm-synthetic-keypress.hpp"
 #include "bm-window-focus.hpp"
 
 #include <obs-frontend-api.h>
@@ -20,6 +21,28 @@
 
 namespace bm {
 namespace {
+
+const char *synthetic_keypress_status_name(SyntheticKeypressStatus status)
+{
+	switch (status) {
+	case SyntheticKeypressStatus::Success:
+		return "success";
+	case SyntheticKeypressStatus::Empty:
+		return "empty";
+	case SyntheticKeypressStatus::InvalidSequence:
+		return "invalid";
+	case SyntheticKeypressStatus::UnsupportedPlatform:
+		return "unsupported_platform";
+	case SyntheticKeypressStatus::PermissionDenied:
+		return "permission_denied";
+	case SyntheticKeypressStatus::UnsupportedKey:
+		return "unsupported_key";
+	case SyntheticKeypressStatus::SystemFailure:
+		return "system_failure";
+	default:
+		return "unknown";
+	}
+}
 
 class HotkeyDialogFocusSession {
 public:
@@ -212,21 +235,24 @@ void MarkerController::add_marker_from_template_hotkey(const MarkerTemplate &tem
 		HotkeyDialogFocusSession focus_session(m_store);
 		DialogRecordingPauseSession pause_session(m_store);
 		QVector<MarkerTemplate> templates{templ};
-		MarkerDialog dialog(templates, MarkerDialog::Mode::FixedTemplate, templ.id, m_parent_window);
-		focus_session.prepare_dialog(&dialog);
-		pause_session.pause_if_needed();
-		if (dialog.exec() != QDialog::Accepted) {
-			focus_session.restore();
-			pause_session.resume_if_needed();
-			return;
-		}
+			MarkerDialog dialog(templates, MarkerDialog::Mode::FixedTemplate, templ.id, m_parent_window);
+			focus_session.prepare_dialog(&dialog);
+			pause_session.pause_if_needed();
+			maybe_send_synthetic_keypress(true);
+			if (dialog.exec() != QDialog::Accepted) {
+				focus_session.restore();
+				maybe_send_synthetic_keypress(false);
+				pause_session.resume_if_needed();
+				return;
+			}
 
 		title = dialog.marker_title();
-		description = dialog.marker_description();
-		color_id = dialog.marker_color_id();
-		focus_session.restore();
-		pause_session.resume_if_needed();
-	}
+			description = dialog.marker_description();
+			color_id = dialog.marker_color_id();
+			focus_session.restore();
+			maybe_send_synthetic_keypress(false);
+			pause_session.resume_if_needed();
+		}
 
 	const MarkerRecord marker = marker_from_inputs(ctx, title, description, color_id);
 	append_marker(ctx.media_path, marker);
@@ -260,8 +286,10 @@ void MarkerController::quick_custom_marker()
 	MarkerDialog dialog(none, MarkerDialog::Mode::NoTemplate, QString(), m_parent_window);
 	focus_session.prepare_dialog(&dialog);
 	pause_session.pause_if_needed();
+	maybe_send_synthetic_keypress(true);
 	if (dialog.exec() != QDialog::Accepted) {
 		focus_session.restore();
+		maybe_send_synthetic_keypress(false);
 		pause_session.resume_if_needed();
 		return;
 	}
@@ -269,6 +297,7 @@ void MarkerController::quick_custom_marker()
 	const MarkerRecord marker =
 		marker_from_inputs(ctx, dialog.marker_title(), dialog.marker_description(), dialog.marker_color_id());
 	focus_session.restore();
+	maybe_send_synthetic_keypress(false);
 	pause_session.resume_if_needed();
 	append_marker(ctx.media_path, marker);
 }
@@ -352,6 +381,37 @@ void MarkerController::prepare_marker_dialog(MarkerDialog *dialog) const
 		m_parent_window->raise();
 		m_parent_window->activateWindow();
 	}
+}
+
+void MarkerController::maybe_send_synthetic_keypress(bool before_focus) const
+{
+	if (!m_store)
+		return;
+	if (!m_store->auto_focus_marker_dialog())
+		return;
+	if (!m_store->synthetic_keypress_around_focus_enabled())
+		return;
+
+	const QString portable = before_focus ? m_store->synthetic_keypress_before_focus_portable()
+					      : m_store->synthetic_keypress_after_unfocus_portable();
+	const SyntheticKeypressResult result = send_synthetic_keypress_portable(portable);
+	if (result.status == SyntheticKeypressStatus::Success) {
+		blog(LOG_DEBUG, "[better-markers] synthetic keypress %s succeeded",
+		     before_focus ? "before-focus" : "after-unfocus");
+		return;
+	}
+
+	if (result.status == SyntheticKeypressStatus::Empty) {
+		blog(LOG_DEBUG, "[better-markers] synthetic keypress %s skipped: key not configured",
+		     before_focus ? "before-focus" : "after-unfocus");
+		return;
+	}
+
+	blog(LOG_WARNING, "[better-markers] synthetic keypress %s failed: status=%s reason=%s",
+	     before_focus ? "before-focus" : "after-unfocus", synthetic_keypress_status_name(result.status),
+	     result.technical_reason.toUtf8().constData());
+	if (!m_synthetic_keypress_warning_shown.exchange(true))
+		show_warning_async(bm_text("BetterMarkers.Warning.SyntheticKeypressFailed"));
 }
 
 void MarkerController::append_marker(const QString &media_path, const MarkerRecord &marker)
