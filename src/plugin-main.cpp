@@ -39,8 +39,11 @@ with this program. If not, see <https://www.gnu.org/licenses/>
 #include <QUrl>
 #include <QVersionNumber>
 #include <QPushButton>
+#include <QTimer>
 #include <QVBoxLayout>
 #include <QWidget>
+#include <chrono>
+#include <future>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -63,10 +66,20 @@ constexpr const char *LATEST_RELEASE_API_URL = "https://api.github.com/repos/prz
 constexpr int UPDATE_ACTION_SKIP = 1;
 constexpr int UPDATE_ACTION_IGNORE = 2;
 constexpr int UPDATE_ACTION_INSTALL = 3;
+constexpr int UPDATE_CHECK_STARTUP_DELAY_MS = 1500;
+constexpr int UPDATE_CHECK_TRANSFER_TIMEOUT_MS = 4000;
+constexpr int UPDATE_CHECK_FALLBACK_POLL_MS = 100;
 
 struct ReleaseDetails {
 	QString tag;
 	QString url;
+};
+
+struct CurlFallbackResult {
+	bool ok = false;
+	QByteArray payload;
+	QString error;
+	uint64_t elapsed_ms = 0;
 };
 
 QString normalize_release_tag(const QString &tag)
@@ -287,21 +300,14 @@ public:
 			delete m_settings_dialog;
 		m_settings_dialog = nullptr;
 
-		obs_frontend_remove_dock(DOCK_ID);
-		if (m_dock_widget)
-			delete m_dock_widget;
-		m_dock_widget = nullptr;
-		if (m_update_check_reply) {
-			if (m_update_check_connection)
-				QObject::disconnect(m_update_check_connection);
-			m_update_check_connection = {};
-			m_update_check_reply->abort();
-			m_update_check_reply = nullptr;
-		}
-		m_update_network.reset();
+			obs_frontend_remove_dock(DOCK_ID);
+			if (m_dock_widget)
+				delete m_dock_widget;
+			m_dock_widget = nullptr;
+			shutdown_update_checks();
 
-		obs_log(LOG_INFO, "plugin unloaded");
-	}
+			obs_log(LOG_INFO, "plugin unloaded");
+		}
 
 private:
 	static void on_frontend_save(obs_data_t *save_data, bool saving, void *private_data)
@@ -447,12 +453,34 @@ private:
 
 	void check_for_updates_on_startup()
 	{
+		if (m_is_shutting_down)
+			return;
+
 		if (!m_update_network)
 			m_update_network = std::make_unique<QNetworkAccessManager>();
+		if (!m_update_check_timer) {
+			m_update_check_timer = std::make_unique<QTimer>();
+			m_update_check_timer->setSingleShot(true);
+			m_update_check_schedule_connection =
+				QObject::connect(m_update_check_timer.get(), &QTimer::timeout, [this]() {
+					start_qt_update_check();
+				});
+		}
 
+		m_update_check_timer->start(UPDATE_CHECK_STARTUP_DELAY_MS);
+		obs_log(LOG_INFO, "[better-markers] update check scheduled in %d ms", UPDATE_CHECK_STARTUP_DELAY_MS);
+	}
+
+	void start_qt_update_check()
+	{
+		if (m_is_shutting_down || m_update_check_reply)
+			return;
+
+		m_update_check_started_ns = os_gettime_ns();
 		QNetworkRequest request(QUrl(QString::fromUtf8(LATEST_RELEASE_API_URL)));
 		request.setRawHeader("Accept", "application/vnd.github+json");
 		request.setRawHeader("User-Agent", QByteArray("better-markers/") + PLUGIN_VERSION);
+		request.setTransferTimeout(UPDATE_CHECK_TRANSFER_TIMEOUT_MS);
 		m_update_check_reply = m_update_network->get(request);
 		m_update_check_connection = QObject::connect(m_update_check_reply, &QNetworkReply::finished, [this]() {
 			QNetworkReply *reply = m_update_check_reply;
@@ -460,39 +488,113 @@ private:
 			m_update_check_connection = {};
 			if (!reply)
 				return;
+			const uint64_t elapsed_ms = (os_gettime_ns() - m_update_check_started_ns) / 1000000ULL;
 			if (m_is_shutting_down) {
 				reply->deleteLater();
 				return;
 			}
 
 			if (reply->error() != QNetworkReply::NoError) {
-				obs_log(LOG_WARNING, "Better Markers update check failed: %s",
-					reply->errorString().toUtf8().constData());
+				const QString qt_error = reply->errorString();
+				obs_log(LOG_WARNING, "[better-markers] update check (qt) failed after %llu ms: %s",
+					static_cast<unsigned long long>(elapsed_ms), qt_error.toUtf8().constData());
 				reply->deleteLater();
-				try_update_check_with_curl();
+				start_curl_update_check_async(qt_error);
 				return;
 			}
 
 			const QByteArray payload = reply->readAll();
 			reply->deleteLater();
+			obs_log(LOG_INFO, "[better-markers] update check (qt) succeeded in %llu ms",
+				static_cast<unsigned long long>(elapsed_ms));
 			apply_update_from_payload(payload);
 		});
 	}
 
-	void try_update_check_with_curl()
+	void start_curl_update_check_async(const QString &reason)
 	{
-		if (m_is_shutting_down)
+		if (m_is_shutting_down || m_update_curl_inflight)
 			return;
 
-		QByteArray payload;
-		QString error;
-		if (!fetch_latest_release_with_curl(&payload, &error)) {
-			obs_log(LOG_WARNING, "Better Markers update check fallback failed: %s",
-				error.toUtf8().constData());
+		m_update_curl_inflight = true;
+		obs_log(LOG_INFO, "[better-markers] update check fallback (curl) scheduled: %s",
+			reason.toUtf8().constData());
+		m_update_curl_future = std::async(std::launch::async, []() {
+			CurlFallbackResult result;
+			const uint64_t begin_ns = os_gettime_ns();
+			result.ok = fetch_latest_release_with_curl(&result.payload, &result.error);
+			result.elapsed_ms = (os_gettime_ns() - begin_ns) / 1000000ULL;
+			return result;
+		});
+
+		if (!m_update_curl_poll_timer) {
+			m_update_curl_poll_timer = std::make_unique<QTimer>();
+			m_update_curl_poll_connection =
+				QObject::connect(m_update_curl_poll_timer.get(), &QTimer::timeout, [this]() {
+					poll_curl_update_check();
+				});
+		}
+		m_update_curl_poll_timer->start(UPDATE_CHECK_FALLBACK_POLL_MS);
+	}
+
+	void poll_curl_update_check()
+	{
+		if (!m_update_curl_inflight || !m_update_curl_future.valid()) {
+			if (m_update_curl_poll_timer)
+				m_update_curl_poll_timer->stop();
 			return;
 		}
 
-		apply_update_from_payload(payload);
+		if (m_update_curl_future.wait_for(std::chrono::milliseconds(0)) != std::future_status::ready)
+			return;
+
+		const CurlFallbackResult result = m_update_curl_future.get();
+		m_update_curl_inflight = false;
+		if (m_update_curl_poll_timer)
+			m_update_curl_poll_timer->stop();
+		if (m_is_shutting_down)
+			return;
+
+		if (!result.ok) {
+			obs_log(LOG_WARNING, "[better-markers] update check fallback (curl) failed after %llu ms: %s",
+				static_cast<unsigned long long>(result.elapsed_ms),
+				result.error.toUtf8().constData());
+			return;
+		}
+
+		obs_log(LOG_INFO, "[better-markers] update check fallback (curl) succeeded in %llu ms",
+			static_cast<unsigned long long>(result.elapsed_ms));
+		apply_update_from_payload(result.payload);
+	}
+
+	void shutdown_update_checks()
+	{
+		if (m_update_check_timer) {
+			m_update_check_timer->stop();
+			if (m_update_check_schedule_connection)
+				QObject::disconnect(m_update_check_schedule_connection);
+			m_update_check_schedule_connection = {};
+		}
+
+		if (m_update_check_reply) {
+			if (m_update_check_connection)
+				QObject::disconnect(m_update_check_connection);
+			m_update_check_connection = {};
+			m_update_check_reply->abort();
+			m_update_check_reply = nullptr;
+		}
+
+		if (m_update_curl_poll_timer) {
+			m_update_curl_poll_timer->stop();
+			if (m_update_curl_poll_connection)
+				QObject::disconnect(m_update_curl_poll_connection);
+			m_update_curl_poll_connection = {};
+		}
+
+		if (m_update_curl_future.valid())
+			m_update_curl_future.wait();
+		m_update_curl_inflight = false;
+		m_update_network.reset();
 	}
 
 	void apply_update_from_payload(const QByteArray &payload)
@@ -574,6 +676,7 @@ private:
 			m_controller->set_shutting_down(true);
 		if (m_settings_dialog)
 			m_settings_dialog->hide();
+		shutdown_update_checks();
 	}
 
 	QString m_store_base_dir;
@@ -583,13 +686,20 @@ private:
 	std::unique_ptr<bm::HotkeyRegistry> m_hotkeys;
 	std::unique_ptr<QNetworkAccessManager> m_update_network;
 	QNetworkReply *m_update_check_reply = nullptr;
+	std::unique_ptr<QTimer> m_update_check_timer;
+	std::unique_ptr<QTimer> m_update_curl_poll_timer;
+	std::future<CurlFallbackResult> m_update_curl_future;
+	uint64_t m_update_check_started_ns = 0;
+	bool m_update_curl_inflight = false;
 	bool m_has_update_available = false;
 	QString m_latest_release_url;
 	bool m_is_shutting_down = false;
 
 	QAction *m_settings_action = nullptr;
 	QMetaObject::Connection m_settings_action_connection;
+	QMetaObject::Connection m_update_check_schedule_connection;
 	QMetaObject::Connection m_update_check_connection;
+	QMetaObject::Connection m_update_curl_poll_connection;
 	QWidget *m_dock_widget = nullptr;
 	bm::SettingsDialog *m_settings_dialog = nullptr;
 };
