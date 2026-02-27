@@ -2,6 +2,9 @@
 
 Better Markers lets you drop edit markers while recording in OBS and export them for Premiere Pro, DaVinci Resolve, and Final Cut Pro.
 
+![Better Markers in OBS - main view](docs/screenshots/obs-plugin-main-view.png)
+![Better Markers in OBS - settings view](docs/screenshots/obs-plugin-settings-view.png)
+
 ## What You Get
 
 - `Add Marker` in OBS while recording
