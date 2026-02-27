@@ -1,7 +1,7 @@
 #include "bm-synthetic-keypress.hpp"
 
 #import <CoreGraphics/CGEvent.h>
-#import <HIToolbox/Events.h>
+#import <Carbon/Carbon.h>
 
 #include <optional>
 #include <vector>
