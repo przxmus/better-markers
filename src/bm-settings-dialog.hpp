@@ -10,6 +10,7 @@ class QListWidget;
 class QCheckBox;
 class QPushButton;
 class QLabel;
+class QKeySequenceEdit;
 
 namespace bm {
 
@@ -29,6 +30,7 @@ private:
 	void delete_template();
 	void on_selection_changed();
 	void update_export_profile_from_ui();
+	void refresh_synthetic_keypress_controls();
 	QStringList available_profiles() const;
 	QStringList available_scene_collections() const;
 
@@ -46,6 +48,10 @@ private:
 	QCheckBox *m_final_cut_toggle = nullptr;
 	QCheckBox *m_auto_focus_toggle = nullptr;
 	QCheckBox *m_pause_during_dialog_toggle = nullptr;
+	QCheckBox *m_synthetic_keypress_toggle = nullptr;
+	QKeySequenceEdit *m_synthetic_pre_key_edit = nullptr;
+	QKeySequenceEdit *m_synthetic_post_key_edit = nullptr;
+	QLabel *m_synthetic_info_label = nullptr;
 	QPushButton *m_edit_button = nullptr;
 	QPushButton *m_delete_button = nullptr;
 	QLabel *m_version_label = nullptr;
