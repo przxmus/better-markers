@@ -249,7 +249,8 @@ public:
 			});
 		m_hotkeys->initialize();
 		const uint64_t after_controller_init_ns = os_gettime_ns();
-		obs_log(LOG_INFO, "[better-markers] plugin load phase ready: stores/controller/hotkeys initialized (%llu ms)",
+		obs_log(LOG_INFO,
+			"[better-markers] plugin load phase ready: stores/controller/hotkeys initialized (%llu ms)",
 			static_cast<unsigned long long>((after_controller_init_ns - load_begin_ns) / 1000000ULL));
 
 		obs_frontend_add_save_callback(&BetterMarkersPlugin::on_frontend_save, this);
@@ -268,7 +269,8 @@ public:
 		m_controller->start_recovery_queue_async();
 		check_for_updates_on_startup();
 		const uint64_t after_startup_tasks_ns = os_gettime_ns();
-		obs_log(LOG_INFO, "[better-markers] plugin load phase ready: startup tasks scheduled/completed (%llu ms)",
+		obs_log(LOG_INFO,
+			"[better-markers] plugin load phase ready: startup tasks scheduled/completed (%llu ms)",
 			static_cast<unsigned long long>((after_startup_tasks_ns - load_begin_ns) / 1000000ULL));
 
 		obs_log(LOG_INFO, "plugin loaded successfully (version %s)", PLUGIN_VERSION);
@@ -300,14 +302,14 @@ public:
 			delete m_settings_dialog;
 		m_settings_dialog = nullptr;
 
-			obs_frontend_remove_dock(DOCK_ID);
-			if (m_dock_widget)
-				delete m_dock_widget;
-			m_dock_widget = nullptr;
-			shutdown_update_checks();
+		obs_frontend_remove_dock(DOCK_ID);
+		if (m_dock_widget)
+			delete m_dock_widget;
+		m_dock_widget = nullptr;
+		shutdown_update_checks();
 
-			obs_log(LOG_INFO, "plugin unloaded");
-		}
+		obs_log(LOG_INFO, "plugin unloaded");
+	}
 
 private:
 	static void on_frontend_save(obs_data_t *save_data, bool saving, void *private_data)
@@ -461,10 +463,8 @@ private:
 		if (!m_update_check_timer) {
 			m_update_check_timer = std::make_unique<QTimer>();
 			m_update_check_timer->setSingleShot(true);
-			m_update_check_schedule_connection =
-				QObject::connect(m_update_check_timer.get(), &QTimer::timeout, [this]() {
-					start_qt_update_check();
-				});
+			m_update_check_schedule_connection = QObject::connect(
+				m_update_check_timer.get(), &QTimer::timeout, [this]() { start_qt_update_check(); });
 		}
 
 		m_update_check_timer->start(UPDATE_CHECK_STARTUP_DELAY_MS);
@@ -529,10 +529,9 @@ private:
 
 		if (!m_update_curl_poll_timer) {
 			m_update_curl_poll_timer = std::make_unique<QTimer>();
-			m_update_curl_poll_connection =
-				QObject::connect(m_update_curl_poll_timer.get(), &QTimer::timeout, [this]() {
-					poll_curl_update_check();
-				});
+			m_update_curl_poll_connection = QObject::connect(m_update_curl_poll_timer.get(),
+									 &QTimer::timeout,
+									 [this]() { poll_curl_update_check(); });
 		}
 		m_update_curl_poll_timer->start(UPDATE_CHECK_FALLBACK_POLL_MS);
 	}
@@ -557,8 +556,7 @@ private:
 
 		if (!result.ok) {
 			obs_log(LOG_WARNING, "[better-markers] update check fallback (curl) failed after %llu ms: %s",
-				static_cast<unsigned long long>(result.elapsed_ms),
-				result.error.toUtf8().constData());
+				static_cast<unsigned long long>(result.elapsed_ms), result.error.toUtf8().constData());
 			return;
 		}
 

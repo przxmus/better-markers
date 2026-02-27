@@ -90,7 +90,8 @@ inline bool PremiereXmpSink::on_recording_closed(const MarkerExportRecordingCont
 	EmbedResult result;
 	{
 		std::lock_guard<std::mutex> embed_lock(m_embed_mutex);
-		result = m_embed_engine.embed_from_sidecar_with_retry(recording_ctx.media_path, sidecar, kFinalizeRetryAttempts,
+		result = m_embed_engine.embed_from_sidecar_with_retry(recording_ctx.media_path, sidecar,
+								      kFinalizeRetryAttempts,
 								      kFinalizeRetryInitialDelayMs,
 								      kFinalizeRetryMaxDelayMs);
 	}
@@ -197,8 +198,7 @@ inline void PremiereXmpSink::run_startup_recovery_worker()
 		{
 			std::lock_guard<std::mutex> embed_lock(m_embed_mutex);
 			result = m_embed_engine.embed_from_sidecar_with_retry(job.media_path, decision.sidecar_path,
-									      startup_recovery_retry_attempts(),
-									      0, 0);
+									      startup_recovery_retry_attempts(), 0, 0);
 		}
 		if (result.ok) {
 			{

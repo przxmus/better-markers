@@ -233,8 +233,7 @@ void test_startup_recovery_drops_stale_jobs()
 
 	const bm::StartupRecoveryDecision missing_media =
 		bm::decide_startup_recovery(temp_dir.path() + "/missing-recording.mp4");
-	require(missing_media.action == bm::StartupRecoveryAction::DropMissingMedia,
-		"missing media should be dropped");
+	require(missing_media.action == bm::StartupRecoveryAction::DropMissingMedia, "missing media should be dropped");
 
 	const QString unsupported_path = temp_dir.path() + "/recording.mkv";
 	{
@@ -274,7 +273,8 @@ void test_startup_recovery_retries_once()
 	const QString sidecar_path = info.dir().filePath(info.completeBaseName() + ".xmp");
 	{
 		QFile sidecar_file(sidecar_path);
-		require(sidecar_file.open(QIODevice::WriteOnly | QIODevice::Truncate), "create sidecar for startup retry");
+		require(sidecar_file.open(QIODevice::WriteOnly | QIODevice::Truncate),
+			"create sidecar for startup retry");
 		require(sidecar_file.write("<xmp/>") == 6, "write sidecar for startup retry");
 	}
 
