@@ -2,6 +2,8 @@
 
 #include <QFile>
 #include <QFileInfo>
+#include <QProcess>
+#include <QStandardPaths>
 #include <QThread>
 
 #include <algorithm>
@@ -301,6 +303,37 @@ EmbedResult embed_failure(const QString &error, bool retryable)
 	return {false, error, retryable};
 }
 
+EmbedResult try_embed_with_exiftool(const QString &media_path, const QString &sidecar_path)
+{
+	const QString exiftool = QStandardPaths::findExecutable("exiftool");
+	if (exiftool.isEmpty())
+		return embed_failure("ExifTool is not installed", true);
+
+	QProcess process;
+	process.start(exiftool, {"-overwrite_original", QString("-XMP<=%1").arg(sidecar_path), media_path});
+	if (!process.waitForStarted(1000))
+		return embed_failure("Failed to start ExifTool process", true);
+	if (!process.waitForFinished(20000)) {
+		process.kill();
+		process.waitForFinished(1000);
+		return embed_failure("ExifTool process timed out", true);
+	}
+
+	if (process.exitStatus() != QProcess::NormalExit || process.exitCode() != 0) {
+		const QString stderr_text = QString::fromUtf8(process.readAllStandardError()).trimmed();
+		const QString stdout_text = QString::fromUtf8(process.readAllStandardOutput()).trimmed();
+		const QString detail = !stderr_text.isEmpty() ? stderr_text : stdout_text;
+		return embed_failure(detail.isEmpty() ? "ExifTool returned non-zero status"
+						      : QString("ExifTool failed: %1").arg(detail),
+				     true);
+	}
+
+	if (!has_xmp_atom(media_path))
+		return embed_failure("ExifTool reported success but XMP metadata was not found", false);
+
+	return {true, {}};
+}
+
 } // namespace
 
 EmbedResult Mp4MovEmbedEngine::embed_from_sidecar(const QString &media_path, const QString &sidecar_path) const
@@ -314,6 +347,10 @@ EmbedResult Mp4MovEmbedEngine::embed_from_sidecar(const QString &media_path, con
 	const QByteArray payload = sidecar.readAll();
 	if (payload.isEmpty())
 		return embed_failure(QString("Sidecar is empty: %1").arg(sidecar_path), false);
+
+	const EmbedResult exiftool_result = try_embed_with_exiftool(media_path, sidecar_path);
+	if (exiftool_result.ok)
+		return exiftool_result;
 
 	return embed_xmp(media_path, payload);
 }

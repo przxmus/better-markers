@@ -61,6 +61,28 @@ void write_file_or_fail(const QString &path, const QByteArray &contents, const c
 	require_embed(file.write(contents) == contents.size(), message);
 }
 
+class ScopedEnvVar {
+public:
+	explicit ScopedEnvVar(const char *name)
+		: m_name(name),
+		  m_old_value(qgetenv(name)),
+		  m_had_value(!m_old_value.isNull())
+	{
+	}
+	~ScopedEnvVar()
+	{
+		if (m_had_value)
+			qputenv(m_name, m_old_value);
+		else
+			qunsetenv(m_name);
+	}
+
+private:
+	const char *m_name;
+	QByteArray m_old_value;
+	bool m_had_value = false;
+};
+
 void test_parse_error_is_retryable()
 {
 	QTemporaryDir temp_dir;
@@ -123,6 +145,32 @@ void test_empty_sidecar_is_not_retryable()
 	require_embed(result.error.contains("Sidecar is empty"), "empty sidecar reason surfaced");
 }
 
+void test_fallback_works_when_exiftool_fails()
+{
+	QTemporaryDir temp_dir;
+	require_embed(temp_dir.isValid(), "temporary directory created for exiftool fallback test");
+
+	const QString media_path = temp_dir.path() + "/recording.mp4";
+	const QString sidecar_path = temp_dir.path() + "/recording.xmp";
+	const QString exiftool_path = temp_dir.path() + "/exiftool";
+
+	write_file_or_fail(media_path, valid_single_free_atom_file(), "write valid media file for fallback test");
+	write_file_or_fail(sidecar_path, sample_xmp_payload(), "write sidecar file for fallback test");
+	write_file_or_fail(exiftool_path, QByteArray("#!/bin/sh\nexit 1\n"), "write fake exiftool script");
+	require_embed(QFile::setPermissions(exiftool_path,
+					    QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner),
+		      "mark fake exiftool script executable");
+
+	ScopedEnvVar scoped_path("PATH");
+	const QByteArray old_path = qgetenv("PATH");
+	const QByteArray test_path = temp_dir.path().toUtf8() + ":" + old_path;
+	require_embed(qputenv("PATH", test_path), "set PATH for exiftool fallback test");
+
+	bm::Mp4MovEmbedEngine engine;
+	const bm::EmbedResult result = engine.embed_from_sidecar(media_path, sidecar_path);
+	require_embed(result.ok, "embed falls back to internal engine when exiftool exits non-zero");
+}
+
 } // namespace
 
 void run_embed_engine_tests()
@@ -130,4 +178,5 @@ void run_embed_engine_tests()
 	test_parse_error_is_retryable();
 	test_retry_succeeds_after_media_stabilizes();
 	test_empty_sidecar_is_not_retryable();
+	test_fallback_works_when_exiftool_fails();
 }
