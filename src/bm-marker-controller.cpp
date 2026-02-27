@@ -13,14 +13,23 @@
 
 #include <QFile>
 #include <QCoreApplication>
+#include <QEventLoop>
 #include <QMetaObject>
 #include <QMessageBox>
 #include <QPointer>
+#include <QThread>
+#include <QTimer>
 #include <QUuid>
 #include <QWidget>
 
+#include <algorithm>
+
 namespace bm {
 namespace {
+
+constexpr uint32_t kPauseSettleFrames = 3;
+constexpr uint32_t kFallbackFpsNum = 30;
+constexpr uint32_t kFallbackFpsDen = 1;
 
 const char *synthetic_keypress_status_name(SyntheticKeypressStatus status)
 {
@@ -42,6 +51,22 @@ const char *synthetic_keypress_status_name(SyntheticKeypressStatus status)
 	default:
 		return "unknown";
 	}
+}
+
+void run_non_blocking_delay_ms(int delay_ms)
+{
+	if (delay_ms <= 0)
+		return;
+
+	QCoreApplication *app = QCoreApplication::instance();
+	if (!app || QThread::currentThread() != app->thread()) {
+		os_sleep_ms(static_cast<uint32_t>(delay_ms));
+		return;
+	}
+
+	QEventLoop loop;
+	QTimer::singleShot(delay_ms, &loop, [&loop]() { loop.quit(); });
+	loop.exec(QEventLoop::ExcludeUserInputEvents);
 }
 
 class HotkeyDialogFocusSession {
@@ -99,9 +124,10 @@ private:
 
 class DialogRecordingPauseSession {
 public:
-	explicit DialogRecordingPauseSession(const ScopeStore *store)
+	DialogRecordingPauseSession(const ScopeStore *store, const RecordingSessionTracker *tracker)
 	{
 		m_enabled = store && store->pause_recording_during_marker_dialog();
+		m_tracker = tracker;
 	}
 
 	~DialogRecordingPauseSession() { resume_if_needed(); }
@@ -123,8 +149,15 @@ public:
 
 		obs_frontend_recording_pause(true);
 		m_paused_by_plugin = obs_frontend_recording_paused();
-		if (!m_paused_by_plugin)
+		if (!m_paused_by_plugin) {
 			blog(LOG_DEBUG, "[better-markers] auto-pause request resulted in no-op");
+			return;
+		}
+
+		const int delay_ms = pause_settle_delay_ms();
+		blog(LOG_DEBUG, "[better-markers] auto-pause settle delay: %d ms (%u frames at %.3f fps)", delay_ms,
+		     kPauseSettleFrames, pause_fps());
+		run_non_blocking_delay_ms(delay_ms);
 	}
 
 	void resume_if_needed()
@@ -144,7 +177,59 @@ public:
 	}
 
 private:
+	int pause_settle_delay_ms() const
+	{
+		const uint32_t fps_num = pause_fps_num();
+		const uint32_t fps_den = pause_fps_den();
+		if (fps_num == 0 || fps_den == 0)
+			return 0;
+
+		const uint64_t numerator = static_cast<uint64_t>(kPauseSettleFrames) * fps_den * 1000ULL;
+		const uint64_t delay_ms = (numerator + fps_num - 1ULL) / fps_num;
+		return static_cast<int>(std::max<uint64_t>(1ULL, delay_ms));
+	}
+
+	uint32_t pause_fps_num() const
+	{
+		if (m_tracker) {
+			const uint32_t tracked_num = m_tracker->fps_num();
+			if (tracked_num > 0)
+				return tracked_num;
+		}
+
+		obs_video_info ovi{};
+		if (obs_get_video_info(&ovi) && ovi.fps_num > 0)
+			return ovi.fps_num;
+
+		return kFallbackFpsNum;
+	}
+
+	uint32_t pause_fps_den() const
+	{
+		if (m_tracker) {
+			const uint32_t tracked_den = m_tracker->fps_den();
+			if (tracked_den > 0)
+				return tracked_den;
+		}
+
+		obs_video_info ovi{};
+		if (obs_get_video_info(&ovi) && ovi.fps_den > 0)
+			return ovi.fps_den;
+
+		return kFallbackFpsDen;
+	}
+
+	double pause_fps() const
+	{
+		const uint32_t num = pause_fps_num();
+		const uint32_t den = pause_fps_den();
+		if (num == 0 || den == 0)
+			return 0.0;
+		return static_cast<double>(num) / static_cast<double>(den);
+	}
+
 	bool m_enabled = false;
+	const RecordingSessionTracker *m_tracker = nullptr;
 	bool m_pause_attempted = false;
 	bool m_resume_attempted = false;
 	bool m_paused_by_plugin = false;
@@ -202,7 +287,7 @@ void MarkerController::add_marker_from_main_button()
 
 	MarkerDialog dialog(templates, MarkerDialog::Mode::ChooseTemplate, QString(), m_parent_window);
 	prepare_marker_dialog(&dialog);
-	DialogRecordingPauseSession pause_session(m_store);
+	DialogRecordingPauseSession pause_session(m_store, m_tracker);
 	pause_session.pause_if_needed();
 	if (dialog.exec() != QDialog::Accepted) {
 		pause_session.resume_if_needed();
@@ -233,7 +318,7 @@ void MarkerController::add_marker_from_template_hotkey(const MarkerTemplate &tem
 		}
 
 		HotkeyDialogFocusSession focus_session(m_store);
-		DialogRecordingPauseSession pause_session(m_store);
+		DialogRecordingPauseSession pause_session(m_store, m_tracker);
 		QVector<MarkerTemplate> templates{templ};
 		MarkerDialog dialog(templates, MarkerDialog::Mode::FixedTemplate, templ.id, m_parent_window);
 		focus_session.prepare_dialog(&dialog);
@@ -281,7 +366,7 @@ void MarkerController::quick_custom_marker()
 	}
 
 	HotkeyDialogFocusSession focus_session(m_store);
-	DialogRecordingPauseSession pause_session(m_store);
+	DialogRecordingPauseSession pause_session(m_store, m_tracker);
 	QVector<MarkerTemplate> none;
 	MarkerDialog dialog(none, MarkerDialog::Mode::NoTemplate, QString(), m_parent_window);
 	focus_session.prepare_dialog(&dialog);
