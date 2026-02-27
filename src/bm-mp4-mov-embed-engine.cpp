@@ -1,5 +1,6 @@
 #include "bm-mp4-mov-embed-engine.hpp"
 
+#include <QCoreApplication>
 #include <QFile>
 #include <QFileInfo>
 #include <QProcess>
@@ -348,9 +349,13 @@ EmbedResult Mp4MovEmbedEngine::embed_from_sidecar(const QString &media_path, con
 	if (payload.isEmpty())
 		return embed_failure(QString("Sidecar is empty: %1").arg(sidecar_path), false);
 
-	const EmbedResult exiftool_result = try_embed_with_exiftool(media_path, sidecar_path);
-	if (exiftool_result.ok)
-		return exiftool_result;
+	QCoreApplication *app = QCoreApplication::instance();
+	const bool on_ui_thread = app && QThread::currentThread() == app->thread();
+	if (!on_ui_thread) {
+		const EmbedResult exiftool_result = try_embed_with_exiftool(media_path, sidecar_path);
+		if (exiftool_result.ok)
+			return exiftool_result;
+	}
 
 	return embed_xmp(media_path, payload);
 }
@@ -362,10 +367,12 @@ EmbedResult Mp4MovEmbedEngine::embed_from_sidecar_with_retry(const QString &medi
 	const int attempts = std::max(1, max_attempts);
 	int delay_ms = std::max(0, initial_delay_ms);
 	const int max_delay = std::max(delay_ms, max_delay_ms);
+	QCoreApplication *app = QCoreApplication::instance();
+	const bool on_ui_thread = app && QThread::currentThread() == app->thread();
 
 	EmbedResult result = embed_from_sidecar(media_path, sidecar_path);
 	for (int attempt = 1; attempt < attempts && !result.ok && result.retryable; ++attempt) {
-		if (delay_ms > 0)
+		if (delay_ms > 0 && !on_ui_thread)
 			QThread::msleep(static_cast<unsigned long>(delay_ms));
 		result = embed_from_sidecar(media_path, sidecar_path);
 		if (delay_ms > 0)

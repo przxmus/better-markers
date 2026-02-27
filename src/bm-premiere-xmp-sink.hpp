@@ -26,9 +26,9 @@ private:
 	static constexpr int kFinalizeRetryAttempts = 8;
 	static constexpr int kFinalizeRetryInitialDelayMs = 120;
 	static constexpr int kFinalizeRetryMaxDelayMs = 2000;
-	static constexpr int kRecoveryRetryAttempts = 4;
-	static constexpr int kRecoveryRetryInitialDelayMs = 200;
-	static constexpr int kRecoveryRetryMaxDelayMs = 2000;
+	static constexpr int kRecoveryRetryAttempts = 3;
+	static constexpr int kRecoveryRetryInitialDelayMs = 100;
+	static constexpr int kRecoveryRetryMaxDelayMs = 500;
 
 	XmpSidecarWriter m_xmp_writer;
 	Mp4MovEmbedEngine m_embed_engine;
